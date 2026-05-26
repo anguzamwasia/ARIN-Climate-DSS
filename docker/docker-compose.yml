@@ -1,16 +1,14 @@
-version: "3.8"
-
 services:
   db:
     image: pgvector/pgvector:pg16
     container_name: arin_postgres
-    restart: unless-stopped
+    restart: always
     environment:
       POSTGRES_DB: arin_dss
       POSTGRES_USER: arin
       POSTGRES_PASSWORD: arin_secure_2026
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -18,7 +16,7 @@ services:
   pgadmin:
     image: dpage/pgadmin4
     container_name: arin_pgadmin
-    restart: unless-stopped
+    restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@arin.org
       PGADMIN_DEFAULT_PASSWORD: admin2026

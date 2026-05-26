@@ -2,8 +2,9 @@ __pycache__/
 *.pyc
 venv/
 .env
-output/*.json
+output/
 crawl_log.txt
 scrapper/data/
+scrapper/get-docker.sh
 .vscode/
 .idea/
