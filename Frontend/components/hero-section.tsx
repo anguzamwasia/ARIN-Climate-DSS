@@ -148,10 +148,10 @@ export function HeroSection() {
 
               {/* Orbiting Elements */}
               {[
-                { angle: 0, icon: Database, label: "Data", delay: 0 },
-                { angle: 90, icon: Bot, label: "AI", delay: 0.5 },
-                { angle: 180, icon: BarChart3, label: "Viz", delay: 1 },
-                { angle: 270, icon: FileText, label: "Blog", delay: 1.5 },
+                { angle: 0, icon: Database, label: "Data", delay: 0, href: "/data-sources" },
+                { angle: 90, icon: Bot, label: "AI", delay: 0.5, href: null },
+                { angle: 180, icon: BarChart3, label: "Viz", delay: 1, href: null },
+                { angle: 270, icon: FileText, label: "Blog", delay: 1.5, href: null },
               ].map((item, index) => (
                 <motion.div
                   key={index}
@@ -171,10 +171,17 @@ export function HeroSection() {
                     ease: "easeInOut",
                   }}
                 >
-                  <div className="w-full h-full rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex flex-col items-center justify-center gap-1">
-                    <item.icon className="w-6 h-6 text-accent" />
-                    <span className="text-xs text-white/80">{item.label}</span>
-                  </div>
+                  {item.href ? (
+                    <Link href={item.href} className="w-full h-full rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex flex-col items-center justify-center gap-1 hover:bg-white/20 hover:border-accent/50 transition-colors cursor-pointer">
+                      <item.icon className="w-6 h-6 text-accent" />
+                      <span className="text-xs text-white/80">{item.label}</span>
+                    </Link>
+                  ) : (
+                    <div className="w-full h-full rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex flex-col items-center justify-center gap-1">
+                      <item.icon className="w-6 h-6 text-accent" />
+                      <span className="text-xs text-white/80">{item.label}</span>
+                    </div>
+                  )}
                 </motion.div>
               ))}
 

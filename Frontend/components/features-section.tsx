@@ -32,34 +32,45 @@ const features = [
       "Audio & Video Transcriptions",
     ],
     highlight: "Data from 25+ African countries",
+    link: "/data-sources",
+    linkText: "Browse Data Sources",
     visual: (
       <div className="relative h-64 lg:h-80">
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative w-full max-w-md">
             {[
-              { label: "UNFCCC", icon: Globe, top: "0%", left: "10%" },
-              { label: "KoboCollect", icon: Database, top: "0%", right: "10%" },
-              { label: "Audio/Video", icon: Mic, bottom: "0%", left: "10%" },
-              { label: "National Data", icon: FileText, bottom: "0%", right: "10%" },
+              { label: "UNFCCC", icon: Globe, top: "0%", left: "10%", source: "UNFCCC" },
+              { label: "KoboCollect", icon: Database, top: "0%", right: "10%", source: "KMD" },
+              { label: "Audio/Video", icon: Mic, bottom: "0%", left: "10%", source: "WHISPER" },
+              { label: "National Data", icon: FileText, bottom: "0%", right: "10%", source: "KNBS" },
             ].map((source, idx) => (
               <motion.div
                 key={source.label}
-                className="absolute w-24 h-20 bg-white rounded-lg shadow-md border border-border flex flex-col items-center justify-center"
-                style={{ ...source }}
+                style={{ ...source, position: "absolute" }}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: idx * 0.15, duration: 0.5 }}
               >
-                <source.icon className="w-5 h-5 text-accent mb-1" />
-                <span className="text-xs text-muted-foreground text-center">{source.label}</span>
+                <Link
+                  href={`/data-sources?source=${source.source}`}
+                  className="w-24 h-20 bg-white rounded-lg shadow-md border border-border flex flex-col items-center justify-center hover:shadow-lg hover:border-accent transition-all cursor-pointer"
+                >
+                  <source.icon className="w-5 h-5 text-accent mb-1" />
+                  <span className="text-xs text-muted-foreground text-center">{source.label}</span>
+                </Link>
               </motion.div>
             ))}
             <motion.div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-lg"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Database className="w-8 h-8 text-white" />
+              <Link
+                href="/data-sources"
+                className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-lg hover:bg-accent transition-colors cursor-pointer"
+              >
+                <Database className="w-8 h-8 text-white" />
+              </Link>
             </motion.div>
           </div>
         </div>
