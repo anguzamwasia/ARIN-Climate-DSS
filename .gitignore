@@ -8,3 +8,13 @@ scrapper/data/
 scrapper/get-docker.sh
 .vscode/
 .idea/
+
+node_modules/
+.next/
+*.mp3
+*.mp4
+*.wav
+*.m4a
+Backend/uploads/
+.env.local
+__pycache__/
