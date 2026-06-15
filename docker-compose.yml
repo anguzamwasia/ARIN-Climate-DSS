@@ -24,7 +24,7 @@ services:
 
   backend:
     build:
-      context: ../backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: arin_backend
     environment:
@@ -34,11 +34,11 @@ services:
     depends_on:
       - postgres
     volumes:
-      - ../backend:/app
+      - ./backend:/app
 
   frontend:
     build:
-      context: ../Frontend
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: arin_frontend
     environment:
@@ -48,7 +48,7 @@ services:
     depends_on:
       - backend
     volumes:
-      - ../Frontend:/app
+      - ./frontend:/app
       - /app/node_modules
 
 volumes:
