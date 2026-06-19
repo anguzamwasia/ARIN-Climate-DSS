@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: arin_postgres
+    environment:
+      POSTGRES_USER: arin
+      POSTGRES_PASSWORD: arin_secure_2026
+      POSTGRES_DB: arin_dss
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: arin_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@arin.org
+      PGADMIN_DEFAULT_PASSWORD: admin_2026
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: arin_backend
+    environment:
+      DATABASE_URL: postgresql://arin:arin_secure_2026@postgres:5432/arin_dss
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ../backend:/app
+
+volumes:
+  pgdata:

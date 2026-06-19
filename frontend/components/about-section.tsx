@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import { useInView } from "framer-motion"
 import { useRef } from "react"
-import { Target, Layers, Brain, BarChart2 } from "lucide-react"
+import { Target, Layers, Brain, BarChart2, Activity } from "lucide-react"
 
 const objectives = [
   {
@@ -14,13 +14,13 @@ const objectives = [
   },
   {
     icon: Brain,
-    title: "AI-Driven Chatbot",
+    title: "AI-Driven Knowledge Packaging",
     description: "A flexible AI assistant that fetches and synthesizes climate data in real-time through natural language queries.",
     color: "bg-primary",
   },
   {
     icon: Target,
-    title: "Narrative Synthesis",
+    title: "Knowledge Synthesis",
     description: "Converting research narratives and qualitative transcripts into actionable insights through advanced language processing.",
     color: "bg-accent",
   },
@@ -29,6 +29,12 @@ const objectives = [
     title: "Interactive Visualizations",
     description: "Dynamic maps and charts that display climate data with source citations for immediate decision support.",
     color: "bg-primary",
+  },
+  {
+    icon: Activity,
+    title: "Data Analysis",
+    description: "Providing robust statistical and thematic analysis on environmental data to reveal hidden trends and inform strategic decisions.",
+    color: "bg-accent",
   },
 ]
 
@@ -70,7 +76,9 @@ export function AboutSection() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={isInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="group p-6 rounded-xl bg-white border border-border hover:border-accent/30 hover:shadow-lg transition-all duration-300"
+                className={`group p-6 rounded-xl bg-white border border-border hover:border-accent/30 hover:shadow-lg transition-all duration-300 ${
+                  index === 4 ? "sm:col-span-2" : ""
+                }`}
               >
                 <div className={`w-12 h-12 rounded-lg ${objective.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                   <objective.icon className="w-6 h-6 text-white" />

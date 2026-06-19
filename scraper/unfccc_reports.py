@@ -83,13 +83,31 @@ class UnfcccReportsSpider(scrapy.Spider):
         ).strip()
 
         title_lower = title.lower()
-        is_african = not any(x in title.lower() for x in ["new guinea", "papua"]) and any(
-            (" " + c.lower() + " ") in (" " + title_lower + " ") or
-            title_lower.startswith(c.lower() + " ") or
-            title_lower.startswith(c.lower() + ".")
-            for c in self.AFRICAN_COUNTRIES
-        )
+        
+        # Check if country is in title OR just extract the country from metadata
+        country_nodes = response.css(".field--name-field-country a::text").getall()
+        countries_in_metadata = [c.strip() for c in country_nodes if c.strip()]
+        
+        assigned_country = "Africa (Global)"
+        is_african = False
+
+        if countries_in_metadata:
+            for c in countries_in_metadata:
+                if c in self.AFRICAN_COUNTRIES:
+                    is_african = True
+                    assigned_country = c
+                    break
+        
         if not is_african:
+            # Fallback to title check
+            for c in self.AFRICAN_COUNTRIES:
+                if (" " + c.lower() + " ") in (" " + title_lower + " ") or title_lower.startswith(c.lower() + " ") or title_lower.startswith(c.lower() + "."):
+                    is_african = True
+                    assigned_country = c
+                    break
+
+        if not is_african and "region%3AAfrica" not in response.request.headers.get('Referer', b'').decode('utf-8'):
+            # If we still don't know, and it didn't come from the Africa list, skip it
             return
 
         date     = (response.css("time::attr(datetime)").get() or response.css("time::text").get() or "").strip()
@@ -108,5 +126,6 @@ class UnfcccReportsSpider(scrapy.Spider):
             "body":       body,
             "file_url":   file_url,
             "source":     "UNFCCC",
+            "country":    assigned_country,
             "scraped_at": datetime.utcnow().isoformat(),
         }

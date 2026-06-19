@@ -87,7 +87,7 @@ export function ContactSection() {
   }
 
   return (
-    <section ref={ref} className="py-20 lg:py-28 bg-white">
+    <section id="contact" ref={ref} className="py-20 lg:py-28 bg-white">
       <div className="container mx-auto px-4 lg:px-8">
         {/* Section Header */}
         <motion.div
@@ -233,19 +233,17 @@ export function ContactSection() {
               ))}
             </div>
 
-            {/* Visual Vector Grid Area */}
+            {/* Interactive Map Area */}
             <div className="relative h-64 bg-secondary/50 rounded-xl overflow-hidden border border-gray-100">
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <div className="text-center">
-                  <MapPin className="w-12 h-12 text-accent mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-gray-800">Nairobi, Kenya</p>
-                  <p className="text-xs text-muted-foreground mt-1">Interactive Map integration active</p>
-                </div>
-              </div>
-              <div className="absolute inset-0 opacity-10" style={{
-                backgroundImage: `linear-gradient(to right, #021d49 1px, transparent 1px), linear-gradient(to bottom, #021d49 1px, transparent 1px)`,
-                backgroundSize: '20px 20px',
-              }} />
+              <iframe
+                src="https://maps.google.com/maps?q=ACK%20Gardens%20House,%20Nairobi,%20Kenya&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={false}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              ></iframe>
             </div>
           </motion.div>
         </div>

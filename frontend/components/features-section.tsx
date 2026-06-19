@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { useInView } from "framer-motion"
-import { useRef } from "react"
+import { useRef, useState, useEffect } from "react"
 import Link from "next/link"
 import {
   Database,
@@ -24,14 +24,15 @@ const features = [
     icon: Database,
     title: "Multi-Source Data Collection",
     subtitle: "Comprehensive Coverage",
-    description: "We gather and process climate data from multiple trusted sources across 25+ African countries to provide you with comprehensive insights.",
+    description: "We gather and process climate data from multiple trusted sources across African countries to provide you with comprehensive insights.",
     capabilities: [
-      "UNFCCC Policy Reports & Documents",
+      "Global Policy Reports & Documents",
       "National Climate Submissions",
       "Field Data from KoboCollect",
-      "Audio & Video Transcriptions",
+      "Community Insights",
+      "Other sources",
     ],
-    highlight: "Data from 25+ African countries",
+    highlight: "Data from African countries",
     link: "/data-sources",
     linkText: "Browse Data Sources",
     visual: (
@@ -39,9 +40,9 @@ const features = [
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative w-full max-w-md">
             {[
-              { label: "UNFCCC", icon: Globe, top: "0%", left: "10%", source: "UNFCCC" },
+              { label: "Global Policy", icon: Globe, top: "0%", left: "10%", source: "UNFCCC" },
               { label: "KoboCollect", icon: Database, top: "0%", right: "10%", source: "KMD" },
-              { label: "Audio/Video", icon: Mic, bottom: "0%", left: "10%", source: "WHISPER" },
+              { label: "Community Insights", icon: Mic, bottom: "0%", left: "10%", source: "WHISPER" },
               { label: "National Data", icon: FileText, bottom: "0%", right: "10%", source: "KNBS" },
             ].map((source, idx) => (
               <motion.div
@@ -53,7 +54,7 @@ const features = [
               >
                 <Link
                   href={`/data-sources?source=${source.source}`}
-                  className="w-24 h-20 bg-white rounded-lg shadow-md border border-border flex flex-col items-center justify-center hover:shadow-lg hover:border-accent transition-all cursor-pointer"
+                  className="w-28 h-20 bg-white rounded-lg shadow-md border border-border flex flex-col items-center justify-center hover:shadow-lg hover:border-accent transition-all cursor-pointer px-1"
                 >
                   <source.icon className="w-5 h-5 text-accent mb-1" />
                   <span className="text-xs text-muted-foreground text-center">{source.label}</span>
@@ -182,6 +183,18 @@ const features = [
 export function FeaturesSection() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
+  const [countryCount, setCountryCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/documents/stats/countries")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.count) {
+            setCountryCount(data.count)
+        }
+      })
+      .catch(err => console.error("Failed to fetch country count", err))
+  }, [])
 
   return (
     <section ref={ref} id="features" className="py-20 lg:py-28 bg-white">
@@ -244,7 +257,9 @@ export function FeaturesSection() {
                 {/* Highlight */}
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 text-primary text-sm font-medium mb-4">
                   <span className="w-2 h-2 rounded-full bg-accent" />
-                  {feature.highlight}
+                  {feature.highlight === "Data from African countries" && countryCount !== null 
+                    ? `Data from ${countryCount} African countries`
+                    : feature.highlight}
                 </div>
 
                 {/* CTA Link */}

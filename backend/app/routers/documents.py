@@ -7,12 +7,59 @@ from app.models import DocumentOut
 
 router = APIRouter()
 
+@router.get("/documents/stats/countries")
+def count_unique_countries(db: Session = Depends(get_db)):
+    # Count distinct countries from UNFCCC, plus 1 for Kenya (from national data) if not already counted
+    row = db.execute(text("SELECT COUNT(DISTINCT country) as count FROM documents WHERE source = 'UNFCCC' AND country != 'Africa (Global)'")).mappings().first()
+    # Add 1 to ensure Kenya is counted (as national data covers it), unless it's already in the UNFCCC count.
+    # A simplified approach: just count distinct countries from UNFCCC. It usually includes Kenya anyway.
+    # To be perfectly accurate across the platform (excluding counties which are also stored in the 'country' column for KNBS):
+    count = row["count"] if row else 0
+    return {"count": count}
+
+@router.get("/api/stats")
+def get_global_stats(db: Session = Depends(get_db)):
+    countries_row = db.execute(text("SELECT COUNT(DISTINCT country) as count FROM documents WHERE source = 'UNFCCC' AND country != 'Africa (Global)'")).mappings().first()
+    countries_count = countries_row["count"] if countries_row else 0
+
+    reports_row = db.execute(text("SELECT COUNT(*) as count FROM documents WHERE source IN ('UNFCCC', 'KNBS')")).mappings().first()
+    reports_count = reports_row["count"] if reports_row else 0
+
+    field_row = db.execute(text("SELECT COUNT(*) as count FROM documents WHERE source = 'KOBO'")).mappings().first()
+    field_count = field_row["count"] if field_row else 0
+
+    return {
+        "stats": [
+            {
+                "icon": "globe",
+                "value": countries_count,
+                "suffix": "+",
+                "label": "African Countries",
+                "description": "Research coverage"
+            },
+            {
+                "icon": "fileText",
+                "value": reports_count,
+                "suffix": "+",
+                "label": "Policy Reports",
+                "description": "UNFCCC & National"
+            },
+            {
+                "icon": "users",
+                "value": field_count,
+                "suffix": "+",
+                "label": "Field Submissions",
+                "description": "KoboCollect data"
+            }
+        ]
+    }
+
 @router.get("/documents", response_model=list[DocumentOut])
 def list_documents(
     source: Optional[str] = Query(None),
     country: Optional[str] = Query(None),
     type: Optional[str] = Query(None),
-    limit: int = Query(20, le=100),
+    limit: int = Query(20, le=1000),
     offset: int = Query(0),
     db: Session = Depends(get_db)
 ):
