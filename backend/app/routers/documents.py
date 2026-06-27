@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional
+import os
+import uuid
 from app.database import get_db
 from app.models import DocumentOut
 
@@ -88,3 +90,36 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Document not found")
     return dict(row)
+
+@router.post("/api/v1/admin/documents/upload")
+async def upload_document(file: UploadFile = File(...)):
+    # Define acceptable research paper formats
+    allowed_extensions = {".pdf", ".docx", ".csv", ".xlsx"}
+    ext = os.path.splitext(file.filename)[1].lower()
+    
+    if ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail=f"Unsupported file format {ext}. Allowed: pdf, docx, csv, xlsx")
+
+    # Secure storage directory
+    upload_dir = "uploads/documents"
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Generate unique filename to prevent collisions
+    safe_filename = f"{uuid.uuid4()}{ext}"
+    file_path = os.path.join(upload_dir, safe_filename)
+
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+            
+        # Returning success response. 
+        # (In a fully implemented system, you would parse the file here and insert into ChromaDB / PostgreSQL)
+        return {
+            "status": "success",
+            "message": "File uploaded and stored securely.",
+            "original_name": file.filename,
+            "saved_path": file_path
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

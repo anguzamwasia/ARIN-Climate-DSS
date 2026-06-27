@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { 
   Check, X, User, FileText, LayoutDashboard, 
-  Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines 
+  Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines, BookOpen
 } from "lucide-react"
 
 // Types matching current systems
@@ -26,12 +26,12 @@ interface LocalMediaLog {
   originalName: string
   timestamp: string
   status: "processing" | "completed" | "failed"
-  type: "audio" | "video"
+  type: "audio" | "video" | "document"
 }
 
 export default function UnifiedAdminPortal() {
   // Navigation Tracking Layout Toggle
-  const [activeTab, setActiveTab] = useState<"blogs" | "media">("blogs")
+  const [activeTab, setActiveTab] = useState<"blogs" | "media" | "research">("blogs")
 
   // --- BLOG STATE MANAGEMENT ---
   const [allBlogs, setAllBlogs] = useState<Blog[]>([])
@@ -39,7 +39,7 @@ export default function UnifiedAdminPortal() {
   const [rejectionReason, setRejectionReason] = useState("")
   const [showModal, setShowModal] = useState(false)
 
-  // --- MEDIA STATE MANAGEMENT ---
+  // --- MEDIA / DOC STATE MANAGEMENT ---
   const [uploadingFile, setUploadingFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadMessage, setUploadMessage] = useState("")
@@ -91,7 +91,7 @@ export default function UnifiedAdminPortal() {
     setSelectedBlog(null)
   }
 
-  // --- ACTIONS: MEDIA FILES ---
+  // --- ACTIONS: FILES (Media & Docs) ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setUploadingFile(e.target.files[0])
@@ -120,14 +120,13 @@ export default function UnifiedAdminPortal() {
 
       const data = await response.json()
       
-      // Update historical logs array with processing token nodes
-      const fileType = uploadingFile.name.toLowerCase().endsWith(".mp4") ? "video" : ("audio" as const)
+      const fileType = uploadingFile.name.toLowerCase().endsWith(".mp4") ? "video" : "audio"
       const newLog: LocalMediaLog = {
         id: Math.random().toString(36).substr(2, 9),
         originalName: uploadingFile.name,
         timestamp: new Date().toISOString(),
         status: "processing",
-        type: fileType
+        type: fileType as any
       }
       
       const updatedHistory = [newLog, ...localHistory]
@@ -137,7 +136,6 @@ export default function UnifiedAdminPortal() {
       setUploadMessage(`🚀 Asset received! Processing local Whisper transcription on background threads.`)
       setUploadingFile(null)
 
-      // Simulate checking background task execution changes
       setTimeout(() => {
         const completedHistory = updatedHistory.map(log => 
           log.id === newLog.id ? { ...log, status: "completed" as const } : log
@@ -151,6 +149,56 @@ export default function UnifiedAdminPortal() {
     } finally {
       setIsUploading(false)
     }
+  }
+
+  const handleDocUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!uploadingFile) return
+
+    setIsUploading(true)
+    setUploadMessage("Uploading document to secure storage...")
+
+    const formData = new FormData()
+    formData.append("file", uploadingFile)
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/admin/documents/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.detail || "Server rejected document ingestion.")
+      }
+      
+      const newLog: LocalMediaLog = {
+        id: Math.random().toString(36).substr(2, 9),
+        originalName: uploadingFile.name,
+        timestamp: new Date().toISOString(),
+        status: "completed",
+        type: "document"
+      }
+      
+      const updatedHistory = [newLog, ...localHistory]
+      setLocalHistory(updatedHistory)
+      localStorage.setItem("arin_processed_media_logs", JSON.stringify(updatedHistory))
+
+      setUploadMessage(`✅ Research paper received and stored successfully!`)
+      setUploadingFile(null)
+
+    } catch (err: any) {
+      setUploadMessage(`❌ Document ingest failure: ${err.message || err}`)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Helper to reset upload state when switching tabs
+  const switchTab = (tab: "blogs" | "media" | "research") => {
+    setActiveTab(tab)
+    setUploadingFile(null)
+    setUploadMessage("")
   }
 
   return (
@@ -170,7 +218,7 @@ export default function UnifiedAdminPortal() {
             Control Dashboard
           </div>
           <button 
-            onClick={() => setActiveTab("blogs")}
+            onClick={() => switchTab("blogs")}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === "blogs" ? "bg-emerald-50 text-emerald-700 font-bold" : "text-gray-600 hover:bg-gray-50"}`}
           >
             <LayoutDashboard className="w-4 h-4" />
@@ -180,7 +228,14 @@ export default function UnifiedAdminPortal() {
             )}
           </button>
           <button 
-            onClick={() => setActiveTab("media")}
+            onClick={() => switchTab("research")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === "research" ? "bg-emerald-50 text-emerald-700 font-bold" : "text-gray-600 hover:bg-gray-50"}`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Research Papers</span>
+          </button>
+          <button 
+            onClick={() => switchTab("media")}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === "media" ? "bg-emerald-50 text-emerald-700 font-bold" : "text-gray-600 hover:bg-gray-50"}`}
           >
             <Video className="w-4 h-4" />
@@ -254,7 +309,95 @@ export default function UnifiedAdminPortal() {
               </>
             )}
 
-            {/* TAB SECTION B: MEDIA ENGINE INGEST NODE LAYER */}
+            {/* TAB SECTION B: RESEARCH PAPERS */}
+            {activeTab === "research" && (
+              <>
+                <div className="mb-8">
+                  <h1 className="text-2xl font-bold text-gray-900">Research Documents Ingestion</h1>
+                  <p className="text-sm text-gray-500">Upload official research papers, csv data, and reports to be stored securely.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* LEFT: UPLOAD BOX CONTROLS */}
+                  <div className="md:col-span-1 bg-white p-6 border rounded-xl shadow-sm h-fit">
+                    <h3 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider text-gray-400">Upload Document</h3>
+                    <form onSubmit={handleDocUploadSubmit} className="space-y-4">
+                      <label className="border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-center block">
+                        <BookOpen className="w-8 h-8 text-gray-400 mb-2" />
+                        <span className="text-xs font-semibold text-gray-700">Select Paper / Dataset</span>
+                        <span className="text-[10px] text-gray-400 mt-1 block">Supports .pdf, .docx, .csv, .xlsx</span>
+                        <input type="file" accept=".pdf,.docx,.csv,.xlsx" onChange={handleFileChange} className="hidden" />
+                      </label>
+
+                      {uploadingFile && (
+                        <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-xs">
+                          <p className="font-bold text-gray-900 truncate">Selected File:</p>
+                          <p className="text-gray-600 truncate mt-0.5">{uploadingFile.name}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{(uploadingFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={!uploadingFile || isUploading}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg shadow-sm disabled:opacity-40 flex items-center justify-center gap-2 transition-all"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="w-3.5 h-3.5 fill-current" />
+                            <span>Store Securely</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+
+                    {uploadMessage && (
+                      <div className={`mt-4 p-3 rounded-lg text-xs leading-relaxed border ${uploadMessage.includes('❌') ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                        {uploadMessage}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIGHT: TRACKING WORKER ENGINE HISTORY LIST */}
+                  <div className="md:col-span-2 bg-white p-6 border rounded-xl shadow-sm">
+                    <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider text-gray-400">Secure Storage History</h3>
+                    
+                    <div className="space-y-3">
+                      {localHistory.filter(log => log.type === 'document').map((log) => (
+                        <div key={log.id} className="border rounded-lg p-4 flex items-center justify-between text-sm hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="p-2 rounded-lg bg-gray-100 flex-shrink-0 text-gray-600">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-gray-900 truncate pr-4">{log.originalName}</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{new Date(log.timestamp).toLocaleString()}</p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Stored</span>
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      {localHistory.filter(log => log.type === 'document').length === 0 && (
+                        <p className="text-xs text-gray-400 italic">No documents uploaded yet.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* TAB SECTION C: MEDIA ENGINE INGEST NODE LAYER */}
             {activeTab === "media" && (
               <>
                 <div className="mb-8">
@@ -313,7 +456,7 @@ export default function UnifiedAdminPortal() {
                     <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider text-gray-400">Local Processing Logs History</h3>
                     
                     <div className="space-y-3">
-                      {localHistory.map((log) => (
+                      {localHistory.filter(log => log.type !== 'document').map((log) => (
                         <div key={log.id} className="border rounded-lg p-4 flex items-center justify-between text-sm hover:bg-gray-50 transition-colors">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="p-2 rounded-lg bg-gray-100 flex-shrink-0 text-gray-600">

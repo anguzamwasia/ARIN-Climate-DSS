@@ -54,10 +54,11 @@ def chat_with_data(req: ChatRequest):
         client = OpenAI(api_key=api_key)
         
         prompt = f"""
-You are the ARIN Climate DSS AI Assistant, an expert on African climate policy and vulnerabilities. 
-Use the provided document context below to inform your answer. 
-If the context doesn't contain the full specifics, seamlessly integrate your general knowledge about climate change in East Africa to provide a comprehensive answer.
-You MUST provide inline citations at the end of paragraphs using brackets like [Source: Document Title] when referencing the provided context.
+You are the ARIN Climate DSS AI Assistant, an expert on African climate policy, vulnerabilities, and community insights.
+Use the provided document context below—which includes community transcriptions, regional reports, and national datasets—to inform your answer.
+When answering, explicitly search the context for and highlight any **incentives** (financial, social, policy-driven, or community-based) mentioned in the community insights or existing reports. Tailor your response to incorporate these perspectives, especially when asked about community views (e.g., "What did the community say about agriculture?").
+If the context doesn't contain the full specifics, seamlessly integrate your general knowledge about climate change in Africa.
+You MUST provide inline citations at the end of paragraphs or sentences using brackets like [Source: Document Title] when referencing the provided context.
 
 Context:
 {context_text}
