@@ -1,76 +1,93 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-from app.database import get_db
 import os
-import google.genai as genai
+import chromadb
+from openai import OpenAI
+import re
 
 router = APIRouter()
 
 class ChatRequest(BaseModel):
     question: str
 
+# Initialize chromadb client once at module level
+chroma_client = chromadb.PersistentClient(path="./chroma_db")
+collection = chroma_client.get_or_create_collection(name="climate_docs")
+
 @router.post("/chat")
-def chat_with_data(req: ChatRequest, db: Session = Depends(get_db)):
+def chat_with_data(req: ChatRequest):
     if not req.question:
         return {"answer": "No message provided.", "sources": []}
         
-    last_user_message = req.question
-    
-    # Simple search
-    keywords = [word for word in last_user_message.split() if len(word) > 3]
-    
-    conditions = []
-    params = {}
-    for i, kw in enumerate(keywords[:5]): # max 5 keywords to prevent massive queries
-        conditions.append(f"(title ILIKE :kw{i} OR content_text ILIKE :kw{i} OR body ILIKE :kw{i})")
-        params[f"kw{i}"] = f"%{kw}%"
-        
-    where_clause = " OR ".join(conditions) if conditions else "1=1"
-    
-    query = text(f"""
-        SELECT title, source, country, COALESCE(content_text, body) as content 
-        FROM documents 
-        WHERE {where_clause} 
-        LIMIT 5
-    """)
-    
-    results = db.execute(query, params).fetchall()
-    
-    context_text = ""
-    for idx, row in enumerate(results):
-        content_excerpt = str(row.content)[:800] if row.content else "No textual content available."
-        context_text += f"\n--- Document {idx+1} ---\nTitle: {row.title}\nSource: {row.source}\nCountry: {row.country}\nContent Excerpt: {content_excerpt}\n"
-
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        doc_titles = [r.title for r in results]
         return {
-            "answer": f"I found some related documents ({', '.join(doc_titles) if doc_titles else 'none'}), but I need a `GEMINI_API_KEY` in your `.env` file to read them for you! Please add it and restart the backend.",
-            "sources": doc_titles
+            "answer": "I need a `OPENAI_API_KEY` in your `.env` file to answer your question! Please add it and restart the backend.",
+            "sources": []
         }
 
+    # Query ChromaDB for top 10 semantically similar documents
+    results = collection.query(
+        query_texts=[req.question],
+        n_results=10
+    )
+    
+    context_text = ""
+    source_titles = []
+    
+    if results and "documents" in results and results["documents"] and len(results["documents"][0]) > 0:
+        docs = results["documents"][0]
+        metas = results["metadatas"][0] if "metadatas" in results and results["metadatas"] else []
+        for i, doc in enumerate(docs):
+            meta = metas[i] if i < len(metas) else {}
+            title = meta.get("title", f"Document {i+1}")
+            clean_title = re.sub(r'(?i)(\s*[:-]\s*Sequence\s*\d+.*)', '', title).strip()
+            source_titles.append(clean_title)
+            context_text += f"\n--- {clean_title} ---\n{doc}\n"
+    else:
+        return {
+            "answer": "I don't have any training data loaded yet! Please run the data embedding script.",
+            "sources": []
+        }
+    
     try:
-        client = genai.Client(api_key=api_key)
+        client = OpenAI(api_key=api_key)
         
         prompt = f"""
-You are the ARIN Climate DSS AI Assistant. Answer the user's question using ONLY the provided document context below.
-If the answer is not in the context, politely say you don't have enough data in the repository yet.
-You MUST provide inline citations at the end of paragraphs using brackets like [Source: Document Title].
+You are the ARIN Climate DSS AI Assistant, an expert on African climate policy and vulnerabilities. 
+Use the provided document context below to inform your answer. 
+If the context doesn't contain the full specifics, seamlessly integrate your general knowledge about climate change in East Africa to provide a comprehensive answer.
+You MUST provide inline citations at the end of paragraphs using brackets like [Source: Document Title] when referencing the provided context.
 
 Context:
 {context_text}
 
-User Question: {last_user_message}
+User Question: {req.question}
 """
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
-        # Extract sources from results for the frontend citation chips
-        source_titles = [r.title for r in results]
-        return {"answer": response.text, "sources": source_titles}
+        import time
+        max_retries = 5
+        retry_delay = 3
+        response = None
+        
+        for attempt in range(max_retries):
+            try:
+                response = client.chat.completions.create(
+                    model='gpt-4o-mini',
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                break
+            except Exception as e:
+                if ("503" in str(e) or "429" in str(e)) and attempt < max_retries - 1:
+                    print(f"OpenAI API Error (Attempt {attempt+1}/{max_retries}). Retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 1.5
+                else:
+                    raise e
+        # Deduplicate source titles for the frontend
+        unique_sources = list(set(source_titles))
+        return {"answer": response.choices[0].message.content, "sources": unique_sources}
     except Exception as e:
-        print(f"Gemini API Error: {e}")
-        return {"answer": "Sorry, I ran into an error trying to process that with the AI model.", "sources": []}
+        import traceback
+        err_trace = traceback.format_exc()
+        print(f"OpenAI API Error: {e}\n{err_trace}")
+        return {"answer": "Sorry, I ran into an error trying to process that with the AI model. (The API might be experiencing heavy load. Please wait 10 seconds and try again).", "sources": []}

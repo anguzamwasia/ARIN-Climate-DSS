@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans, Inter, DM_Mono, Cormorant_Garamond } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { AuthProvider } from '@/contexts/auth-context'
 import './globals.css'
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -49,7 +50,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${plusJakartaSans.variable} ${inter.variable} ${dmMono.variable} ${cormorantGaramond.variable} bg-background`}>
       <body className="font-sans antialiased">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

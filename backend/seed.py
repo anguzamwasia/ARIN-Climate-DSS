@@ -24,7 +24,7 @@ with engine.connect() as conn:
     '''))
     
     # Clear existing scraped documents to prevent duplicates when re-running
-    conn.execute(text("DELETE FROM documents WHERE source IN ('KNBS', 'KMD', 'UNFCCC')"))
+    conn.execute(text("DELETE FROM documents WHERE source IN ('KNBS', 'KMD', 'UNFCCC', 'World Bank')"))
     
     # Iterate over all JSON files in the output directory
     for filename in os.listdir('../scraper/output'):

@@ -27,8 +27,8 @@ export default function KenyaMapClient({ countyCounts, selectedCounty, onSelectC
   }, [countyCounts])
 
   const colorScale = scaleLinear<string>()
-    .domain([0, maxCount])
-    .range(["#ffffff", "#14b8a6"]) // teal-500
+    .domain([0, maxCount * 0.25, maxCount * 0.5, maxCount * 0.75, maxCount])
+    .range(["#f8fafc", "#99f6e4", "#14b8a6", "#0f766e", "#042f2e"])
 
   if (!geoData) return null
 

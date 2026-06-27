@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo } from "react"
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps"
+import { scaleLinear } from "d3-scale"
 
 const geoUrl = "/world-countries.json"
 
@@ -18,6 +19,28 @@ const AFRICAN_COUNTRIES = [
 
 const AfricaMap = ({ countryCounts, selectedCountry, onSelectCountry }: AfricaMapProps) => {
   const [tooltipContent, setTooltipContent] = useState("")
+  const [position, setPosition] = useState({ coordinates: [20, 2] as [number, number], zoom: 1.3 })
+
+  const handleZoomIn = () => {
+    if (position.zoom >= 5) return;
+    setPosition(pos => ({ ...pos, zoom: pos.zoom * 1.2 }));
+  };
+
+  const handleZoomOut = () => {
+    if (position.zoom <= 1) return;
+    setPosition(pos => ({ ...pos, zoom: pos.zoom / 1.2 }));
+  };
+
+
+  const maxCount = useMemo(() => {
+    const counts = Object.values(countryCounts)
+    return counts.length > 0 ? Math.max(...counts) : 1
+  }, [countryCounts])
+
+  const colorScale = scaleLinear<string>()
+    .domain([0, maxCount * 0.25, maxCount * 0.5, maxCount * 0.75, maxCount])
+    .range(["#f8fafc", "#99f6e4", "#14b8a6", "#0f766e", "#042f2e"])
+
 
   return (
     <div className="w-full h-[500px] bg-secondary/10 rounded-xl border border-border relative overflow-hidden flex flex-col items-center justify-center">
@@ -27,6 +50,12 @@ const AfricaMap = ({ countryCounts, selectedCountry, onSelectCountry }: AfricaMa
         </div>
       )}
       
+      {/* Zoom Controls */}
+      <div className="absolute top-4 left-4 flex flex-col z-10 bg-white rounded-lg shadow-md border border-border overflow-hidden">
+        <button onClick={handleZoomIn} className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 text-gray-700 font-bold border-b border-border transition-colors text-lg">+</button>
+        <button onClick={handleZoomOut} className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 text-gray-700 font-bold transition-colors text-lg">-</button>
+      </div>
+
       {/* We use a Mercator projection centered directly on the African continent */}
       <ComposableMap
         projection="geoMercator"
@@ -37,7 +66,13 @@ const AfricaMap = ({ countryCounts, selectedCountry, onSelectCountry }: AfricaMa
         height={600}
         style={{ width: "100%", height: "100%", outline: "none" }}
       >
-        <ZoomableGroup center={[20, 2]} zoom={1.3} minZoom={1} maxZoom={5}>
+        <ZoomableGroup 
+          center={position.coordinates} 
+          zoom={position.zoom} 
+          minZoom={1} 
+          maxZoom={5}
+          onMoveEnd={(pos) => setPosition(pos as { coordinates: [number, number]; zoom: number })}
+        >
           <Geographies geography={geoUrl}>
             {({ geographies }) =>
               geographies
@@ -48,10 +83,10 @@ const AfricaMap = ({ countryCounts, selectedCountry, onSelectCountry }: AfricaMa
                 const count = countryCounts[countryName] || 0
                 const isSelected = selectedCountry === countryName
                 
-                // Color logic: Empty = Light Gray, Has Data = Vibrant Green (Accent), Selected = Dark Green (Primary)
-                let fill = "#EAEAEA"
-                if (count > 0) fill = "#10B981" // Tailwind Emerald-500 (Matches the green accent vibe)
-                if (isSelected) fill = "#047857" // Tailwind Emerald-700
+                // Color logic: Empty = Light Gray, Has Data = Scaled Teal, Selected = Amber Highlight
+                let fill = "#f1f5f9"
+                if (count > 0) fill = colorScale(count)
+                if (isSelected) fill = "#f59e0b" // Amber highlight for selection
                 
                 return (
                   <Geography
@@ -74,8 +109,8 @@ const AfricaMap = ({ countryCounts, selectedCountry, onSelectCountry }: AfricaMa
                     }}
                     style={{
                       default: { fill, outline: "none", stroke: "#FFFFFF", strokeWidth: 0.5 },
-                      hover: { fill: count > 0 ? "#34D399" : "#D4D4D4", outline: "none", cursor: count > 0 ? "pointer" : "default" },
-                      pressed: { fill: "#047857", outline: "none" },
+                      hover: { fill: count > 0 ? "#14b8a6" : "#D4D4D4", outline: "none", cursor: count > 0 ? "pointer" : "default" },
+                      pressed: { fill: "#0f766e", outline: "none" },
                     }}
                   />
                 )

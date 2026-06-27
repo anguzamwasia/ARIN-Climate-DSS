@@ -26,6 +26,9 @@ def sync_scrapers():
         print("Running KMD Meteo Scraper...")
         subprocess.run([r"..\backend\venv\Scripts\scrapy.exe", "runspider", "meteo_spider.py"], cwd=scraper_dir)
         
+        print("Running World Bank Scraper...")
+        subprocess.run([r"..\backend\venv\Scripts\scrapy.exe", "runspider", "worldbank_spider.py"], cwd=scraper_dir)
+        
         # Run DB seed to update documents
         print("Injecting new scraped data into DB...")
         subprocess.run([r".\venv\Scripts\python.exe", "seed.py"], cwd=os.getcwd())

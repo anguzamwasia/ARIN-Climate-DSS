@@ -4,27 +4,29 @@ import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X, ChevronDown, Database, Bot, FileText } from "lucide-react"
+import { Menu, X, ChevronDown, Database, Bot, FileText, UserCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/contexts/auth-context"
 
 const navItems = [
-  { label: "Home", href: "#" },
-  { label: "About", href: "#about" },
+  { label: "Home", href: "/" },
+  { label: "About", href: "/#about" },
   {
     label: "Features",
-    href: "#features",
+    href: "/#features",
     submenu: [
-      { label: "Data Sources", href: "#data-sources", icon: Database },
+      { label: "Data Sources", href: "/data-sources", icon: Database },
       { label: "AI Chatbot", href: "/chatbot", icon: Bot },
       { label: "Submit Blog", href: "/blog/submit", icon: FileText },
     ],
   },
-  { label: "Contact", href: "#contact" },
+  { label: "Read Blogs", href: "/blogs" },
 ]
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null)
+  const { user, logout } = useAuth()
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border">
@@ -89,9 +91,23 @@ export function Header() {
 
           {/* CTA Button */}
           <div className="hidden lg:flex items-center gap-4">
-            <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-              Get Started
-            </Button>
+            {user ? (
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <UserCircle className="w-5 h-5 text-primary" />
+                  {user.name}
+                </div>
+                <Button variant="outline" size="sm" onClick={logout}>
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <Link href="/signin">
+                <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                  Sign In
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -141,9 +157,23 @@ export function Header() {
                   </div>
                 ))}
                 <div className="px-4 pt-4">
-                  <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                    Get Started
-                  </Button>
+                  {user ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground p-2 bg-secondary rounded-md">
+                        <UserCircle className="w-5 h-5 text-primary" />
+                        {user.name}
+                      </div>
+                      <Button variant="outline" className="w-full" onClick={() => { logout(); setMobileMenuOpen(false); }}>
+                        Logout
+                      </Button>
+                    </div>
+                  ) : (
+                    <Link href="/signin" onClick={() => setMobileMenuOpen(false)}>
+                      <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                        Sign In
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -18,3 +18,5 @@ node_modules/
 Backend/uploads/
 .env.local
 __pycache__/
+backend/chroma_db/
+backend/uploads/

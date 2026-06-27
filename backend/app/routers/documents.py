@@ -22,7 +22,7 @@ def get_global_stats(db: Session = Depends(get_db)):
     countries_row = db.execute(text("SELECT COUNT(DISTINCT country) as count FROM documents WHERE source = 'UNFCCC' AND country != 'Africa (Global)'")).mappings().first()
     countries_count = countries_row["count"] if countries_row else 0
 
-    reports_row = db.execute(text("SELECT COUNT(*) as count FROM documents WHERE source IN ('UNFCCC', 'KNBS')")).mappings().first()
+    reports_row = db.execute(text("SELECT COUNT(*) as count FROM documents WHERE source IN ('UNFCCC', 'KNBS', 'World Bank', 'KMD')")).mappings().first()
     reports_count = reports_row["count"] if reports_row else 0
 
     field_row = db.execute(text("SELECT COUNT(*) as count FROM documents WHERE source = 'KOBO'")).mappings().first()
