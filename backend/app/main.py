@@ -17,7 +17,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.routers import health, documents, chat, blogs, transcription, contact
+from app.routers import health, documents, chat, blogs, transcription, contact, auth
+from app.database import engine
+from app.models.user import Base
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="ARIN Climate DSS API",
@@ -43,3 +47,4 @@ app.include_router(chat.router, tags=["Chat"])
 app.include_router(blogs.router, tags=["Blogs"])
 app.include_router(transcription.router, tags=["Transcription"])
 app.include_router(contact.router, tags=["Contact"])
+app.include_router(auth.router, tags=["Auth"])

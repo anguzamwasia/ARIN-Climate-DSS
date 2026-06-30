@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Header } from "@/components/header"
-import { AlertCircle, Eye, EyeOff } from "lucide-react"
+import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 export default function SignInPage() {
   const [isSignUp, setIsSignUp] = useState(false)
@@ -18,6 +20,7 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   
   const { login } = useAuth()
   const router = useRouter()
@@ -30,7 +33,7 @@ export default function SignInPage() {
     setConfirmPassword("")
   }, [isSignUp])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     
@@ -42,37 +45,53 @@ export default function SignInPage() {
       return
     }
 
-    // Prototype database using localStorage
-    const usersDbStr = localStorage.getItem('arin_registered_users')
-    const usersDb = usersDbStr ? JSON.parse(usersDbStr) : []
+    setIsLoading(true)
 
-    if (isSignUp) {
-      // Check if user already exists
-      const existingUser = usersDb.find((u: any) => u.email === email)
-      if (existingUser) {
-        setError("An account with this email already exists.")
-        return
+    try {
+      if (isSignUp) {
+        // Sign Up API Call
+        const res = await fetch(`${API_URL}/api/v1/auth/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password }),
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Failed to sign up.")
+        }
+
+        // Successfully registered and logged in
+        login(data.user, data.access_token)
+        router.push(redirectUrl)
+
+      } else {
+        // Sign In API Call (OAuth2 requires form-urlencoded format)
+        const formData = new URLSearchParams()
+        formData.append('username', email)
+        formData.append('password', password)
+
+        const res = await fetch(`${API_URL}/api/v1/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: formData.toString(),
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Invalid email or password.")
+        }
+
+        // Successfully logged in
+        login(data.user, data.access_token)
+        router.push(redirectUrl)
       }
-      
-      // Register new user
-      const newUser = { name, email, password }
-      usersDb.push(newUser)
-      localStorage.setItem('arin_registered_users', JSON.stringify(usersDb))
-      
-      // Log them in
-      login(name, email)
-      router.push(redirectUrl)
-    } else {
-      // Sign in mode
-      const user = usersDb.find((u: any) => u.email === email && u.password === password)
-      if (!user) {
-        setError("Invalid email or password.")
-        return
-      }
-      
-      // Log them in
-      login(user.name, user.email)
-      router.push(redirectUrl)
+    } catch (err: any) {
+      setError(err.message || "An error occurred. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -85,8 +104,10 @@ export default function SignInPage() {
             <h1 className="text-3xl font-serif font-bold text-foreground">
               {isSignUp ? "Create Account" : "Sign In"}
             </h1>
-            <p className="text-muted-foreground mt-2">
-              {isSignUp ? "Join the ARIN Climate DSS community" : "Welcome back to ARIN Climate DSS"}
+            <p className="text-muted-foreground mt-2 text-sm">
+              {isSignUp 
+                ? "Join the ARIN Climate DSS community." 
+                : "Welcome back to ARIN Climate DSS"}
             </p>
           </div>
           
@@ -162,7 +183,8 @@ export default function SignInPage() {
               </div>
             )}
             
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4">
+            <Button disabled={isLoading} type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4 flex items-center justify-center gap-2">
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               {isSignUp ? "Sign Up" : "Sign In"}
             </Button>
           </form>

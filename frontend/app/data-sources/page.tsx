@@ -26,11 +26,15 @@ interface Doc {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-const getCategory = (source: string) => {
-  if (["KNBS", "KMD", "World Bank"].includes(source)) return "National Reports";
+const getCategory = (source: string, country?: string) => {
   if (["KOBO"].includes(source)) return "Field Submissions";
   if (["UNFCCC"].includes(source)) return "Regional Data";
   if (["WHISPER"].includes(source)) return "Community Insights";
+  if (source === "World Bank") {
+    if (country && country !== "Kenya" && !country.endsWith("County")) return "Regional Data";
+    return "National Reports";
+  }
+  if (["KNBS", "KMD"].includes(source)) return "National Reports";
   return source;
 }
 
@@ -51,7 +55,7 @@ export default function DataSourcesPage() {
   const [selectedMedia, setSelectedMedia] = useState<Doc | null>(null)
 
   useEffect(() => {
-    fetch(`${API_URL}/documents?limit=1000`)
+    fetch(`${API_URL}/documents?limit=10000`)
       .then((res) => res.json())
       .then((data) => setDocs(Array.isArray(data) ? data : []))
       .catch(() => setDocs([]))
@@ -63,7 +67,7 @@ export default function DataSourcesPage() {
   const countyCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     docs.forEach(d => {
-      if (getCategory(d.source) === "National Reports" && d.country) {
+      if (getCategory(d.source, d.country) === "National Reports" && d.country) {
         counts[d.country] = (counts[d.country] || 0) + 1
       }
     })
@@ -73,7 +77,7 @@ export default function DataSourcesPage() {
   const globalCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     docs.forEach(d => {
-      if (getCategory(d.source) === "Regional Data" && d.country && d.country !== "Africa (Global)") {
+      if (getCategory(d.source, d.country) === "Regional Data" && d.country && d.country !== "Africa (Global)") {
         counts[d.country] = (counts[d.country] || 0) + 1
       }
     })
@@ -81,7 +85,7 @@ export default function DataSourcesPage() {
   }, [docs])
 
   const filtered = docs.filter((d) => {
-    const category = getCategory(d.source)
+    const category = getCategory(d.source, d.country)
     const matchesSource = activeSource === "ALL" || category === activeSource
     const matchesSearch = search === "" || d.title?.toLowerCase().includes(search.toLowerCase()) || d.country?.toLowerCase().includes(search.toLowerCase())
     
@@ -138,7 +142,7 @@ export default function DataSourcesPage() {
             </button>
             {categories.map((cat) => {
               const Icon = categoryIcons[cat] || Database
-              const count = docs.filter((d) => getCategory(d.source) === cat).length
+              const count = docs.filter((d) => getCategory(d.source, d.country) === cat).length
               return (
                 <button key={cat} onClick={() => setActiveSource(cat)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeSource === cat ? "bg-accent text-white" : "bg-secondary text-muted-foreground hover:bg-secondary/80"}`}>
                   <Icon className="w-4 h-4" />
@@ -211,18 +215,18 @@ export default function DataSourcesPage() {
                 <div key={doc.id} className="bg-white border border-border rounded-xl p-4 flex flex-col gap-2 hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-accent/10 text-accent">
-                      {getCategory(doc.source) === "Community Insights" ? doc.type || "Insight" : doc.source}
+                      {getCategory(doc.source, doc.country) === "Community Insights" ? doc.type || "Insight" : doc.source}
                     </span>
                     {doc.country && <span className="text-[10px] text-muted-foreground">{doc.country}</span>}
                   </div>
                   <h3 className="font-medium text-sm text-foreground line-clamp-3">{doc.title}</h3>
                   
-                  {getCategory(doc.source) === "Community Insights" && (
+                  {getCategory(doc.source, doc.country) === "Community Insights" && (
                      <p className="text-xs text-muted-foreground line-clamp-3 my-2">{doc.body}</p>
                   )}
 
                   <div className="flex gap-3 mt-auto pt-2">
-                    {getCategory(doc.source) === "Community Insights" ? (
+                    {getCategory(doc.source, doc.country) === "Community Insights" ? (
                       <button 
                         onClick={() => setSelectedMedia(doc)}
                         className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors"

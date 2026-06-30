@@ -29,6 +29,8 @@ interface LocalMediaLog {
   type: "audio" | "video" | "document"
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
 export default function UnifiedAdminPortal() {
   // Navigation Tracking Layout Toggle
   const [activeTab, setActiveTab] = useState<"blogs" | "media" | "research">("blogs")
@@ -111,7 +113,7 @@ export default function UnifiedAdminPortal() {
 
     try {
       // Connects directly to our backend endpoint route layer
-      const response = await fetch("http://127.0.0.1:8000/api/v1/admin/media/upload", {
+      const response = await fetch(`${API_URL}/api/v1/admin/media/upload`, {
         method: "POST",
         body: formData,
       })
@@ -162,7 +164,7 @@ export default function UnifiedAdminPortal() {
     formData.append("file", uploadingFile)
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/admin/documents/upload", {
+      const response = await fetch(`${API_URL}/api/v1/admin/documents/upload`, {
         method: "POST",
         body: formData,
       })

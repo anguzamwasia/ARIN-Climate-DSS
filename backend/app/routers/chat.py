@@ -7,9 +7,7 @@ import re
 
 router = APIRouter()
 
-class ChatRequest(BaseModel):
-    question: str
-
+from app.schemas.chat import ChatRequest, ChatResponse
 # Initialize chromadb client once at module level
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="climate_docs")
