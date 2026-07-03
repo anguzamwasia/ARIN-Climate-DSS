@@ -91,6 +91,13 @@ export function Header() {
 
           {/* CTA Button */}
           <div className="hidden lg:flex items-center gap-4">
+            {user?.email === 'admin@arin-africa.org' && (
+              <Link href="/admin">
+                <Button variant="outline" size="sm" className="bg-primary/10 border-primary/20 text-primary hover:bg-primary/20">
+                  Admin Portal
+                </Button>
+              </Link>
+            )}
             {user ? (
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -163,6 +170,13 @@ export function Header() {
                         <UserCircle className="w-5 h-5 text-primary" />
                         {user.name}
                       </div>
+                      {user.email === 'admin@arin-africa.org' && (
+                        <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
+                          <Button variant="outline" className="w-full bg-primary/10 border-primary/20 text-primary hover:bg-primary/20">
+                            Admin Portal
+                          </Button>
+                        </Link>
+                      )}
                       <Button variant="outline" className="w-full" onClick={() => { logout(); setMobileMenuOpen(false); }}>
                         Logout
                       </Button>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { 
   Check, X, User, FileText, LayoutDashboard, 
   Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines, BookOpen
@@ -82,12 +83,14 @@ export default function UnifiedAdminPortal() {
 
     const savedMedia = localStorage.getItem("arin_processed_media_logs")
     if (savedMedia) {
-      setLocalHistory(JSON.parse(savedMedia))
+      // Filter out the old hardcoded mock data so it doesn't persist for returning users
+      const parsed = JSON.parse(savedMedia)
+      const filtered = parsed.filter((log: LocalMediaLog) => log.originalName !== "KII_Uasin_Gishu_Crop_Yield_Interview.mp3")
+      setLocalHistory(filtered)
+      localStorage.setItem("arin_processed_media_logs", JSON.stringify(filtered))
     } else {
       // Seed default baseline views for interface tracking layout validation
-      const initialLogs: LocalMediaLog[] = [
-        { id: "1", originalName: "KII_Uasin_Gishu_Crop_Yield_Interview.mp3", timestamp: new Date().toISOString(), status: "completed", type: "audio" }
-      ]
+      const initialLogs: LocalMediaLog[] = []
       setLocalHistory(initialLogs)
       localStorage.setItem("arin_processed_media_logs", JSON.stringify(initialLogs))
     }
@@ -256,8 +259,9 @@ export default function UnifiedAdminPortal() {
       {/* GLOBAL HEADBOARD BAR */}
       <header className="sticky top-0 z-50 bg-white border-b h-16 flex items-center justify-between px-6 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3">
-          <Image src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-PPdpF8VNtfjX7cklPViGsEk4BGiGHl.jpg" alt="ARIN" width={90} height={30} className="object-contain" />
-          <span className="text-[10px] font-bold tracking-wider uppercase bg-purple-100 text-purple-800 px-2 py-0.5 rounded">Gate Keeper Gate</span>
+          <Link href="/">
+            <Image src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-PPdpF8VNtfjX7cklPViGsEk4BGiGHl.jpg" alt="ARIN" width={90} height={30} className="object-contain cursor-pointer" />
+          </Link>
         </div>
       </header>
 
