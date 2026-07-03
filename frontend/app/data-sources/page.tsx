@@ -103,10 +103,13 @@ export default function DataSourcesPage() {
     }
 
     if (activeSource === "Regional Data") {
-      if (!selectedMapCounty) {
+      if (search !== "") {
           return matchesSearch && matchesSource
       }
-      return d.country === selectedMapCounty && matchesSearch && matchesSource
+      if (!selectedMapCounty) {
+          return false
+      }
+      return d.country === selectedMapCounty && matchesSource
     }
 
     // For ALL or other sources, keep the original filtering behavior
@@ -187,7 +190,7 @@ export default function DataSourcesPage() {
               <div className="col-span-1">
                 <h2 className="text-2xl font-semibold text-foreground mb-4">African Perspective</h2>
                 <p className="text-muted-foreground text-sm leading-relaxed">
-                  Explore global datasets, UNFCCC submissions, and regional frameworks tailored to the African continent.
+                  Explore global datasets, multilateral institution reports, and regional frameworks tailored to the African continent.
                   Select a specific country on the map to filter global datasets relevant to that region.
                 </p>
               </div>
@@ -203,10 +206,50 @@ export default function DataSourcesPage() {
 
           {loading ? (
             <p className="text-muted-foreground">Loading documents...</p>
+          ) : activeSource === "ALL" && search === "" ? (
+            <div className="bg-white border border-border rounded-xl p-8 shadow-sm">
+              <h2 className="text-2xl font-semibold text-foreground mb-4">Climate Data Overview</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                The Climate DSS automatically ingests, processes, and synthesizes climate policy data from multiple sources. It currently tracks <strong>{docs.length}</strong> documents across Africa.
+                Select a specific category above to explore individual documents and datasets.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-5 h-5 text-accent" />
+                    <h3 className="font-semibold text-foreground">National Reports</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Policy documents, county-level frameworks, and localized strategies tailored to Kenyan counties.</p>
+                </div>
+                <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className="w-5 h-5 text-accent" />
+                    <h3 className="font-semibold text-foreground">Regional Data</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Continental datasets, multilateral institution reports, and regional frameworks addressing cross-border climate challenges.</p>
+                </div>
+                <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mic className="w-5 h-5 text-accent" />
+                    <h3 className="font-semibold text-foreground">Community Insights</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">AI-transcribed audio interviews capturing qualitative feedback and local community vulnerabilities from the field.</p>
+                </div>
+                <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-5 h-5 text-accent" />
+                    <h3 className="font-semibold text-foreground">Field Submissions</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Structured surveys and observational data points automatically synchronized from KoboCollect forms.</p>
+                </div>
+              </div>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="bg-white border border-border rounded-xl p-12 text-center text-muted-foreground text-sm shadow-sm">
               {activeSource === "National Reports" && !selectedMapCounty && search === ""
                 ? "Select a county on the map to view its reports." 
+                : activeSource === "Regional Data" && !selectedMapCounty && search === ""
+                ? "Select a country on the map to view its reports."
                 : "No documents found matching your search."}
             </div>
           ) : (

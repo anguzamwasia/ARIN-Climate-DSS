@@ -28,6 +28,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: arin_backend
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: postgresql://arin:arin_secure_2026@postgres:5432/arin_dss
     ports:

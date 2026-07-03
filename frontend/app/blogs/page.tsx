@@ -26,15 +26,33 @@ export default function PublicBlogsPage() {
   const [search, setSearch] = useState("")
 
   useEffect(() => {
-    const saved = localStorage.getItem("arin_climate_blogs")
-    if (saved) {
+    const fetchBlogs = async () => {
       try {
-        const parsed: Blog[] = JSON.parse(saved)
-        // For demonstration, we show all blogs, but in a real app we'd filter:
-        // setBlogs(parsed.filter(b => b.status === "approved"))
-        setBlogs(parsed)
-      } catch (e) {}
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/blogs?status=approved`)
+        if (res.ok) {
+          const data = await res.json()
+          const mapped = data.map((b: any) => ({
+            id: b.id,
+            title: b.title,
+            authorName: b.author_name,
+            postType: b.post_type,
+            status: b.status,
+            submittedAt: b.submitted_at,
+            imageUrl: b.image_url,
+            formData: {
+              summary: b.summary,
+              findings: b.findings,
+              narrative: b.narrative,
+              impact: b.impact,
+              sources: b.sources,
+              background: b.background
+            }
+          }))
+          setBlogs(mapped)
+        }
+      } catch (err) {}
     }
+    fetchBlogs()
   }, [])
 
   const filteredBlogs = blogs.filter(b => 
@@ -76,19 +94,23 @@ export default function PublicBlogsPage() {
             </div>
           ) : (
             filteredBlogs.map((blog) => (
-              <div key={blog.id} className="bg-white border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group">
+              <Link href={`/blogs/${blog.id}`} key={blog.id} className="bg-white border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between group cursor-pointer block">
                 <div>
-                  <div className="relative h-48 bg-gray-100 w-full overflow-hidden">
-                    <img 
-                      src={blog.imageUrl || "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800"} 
-                      alt={blog.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                    />
-                    <span className={`absolute top-3 right-3 text-[10px] uppercase font-bold tracking-wide px-2 py-1 rounded shadow-sm backdrop-blur-md ${blog.postType === 'research' ? 'bg-blue-100/90 text-blue-800' : 'bg-amber-100/90 text-amber-800'}`}>
-                      {blog.postType === 'research' ? '🔬 Research Paper' : '🌱 Story'}
-                    </span>
-                  </div>
+                  {blog.imageUrl && (
+                    <div className="relative h-48 w-full overflow-hidden bg-gray-50 border-b">
+                      <img 
+                        src={blog.imageUrl} 
+                        alt={blog.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      />
+                    </div>
+                  )}
                   <div className="p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className={`text-[10px] uppercase font-bold tracking-wide px-2 py-1 rounded shadow-sm ${blog.postType === 'research' ? 'bg-blue-100/90 text-blue-800' : 'bg-amber-100/90 text-amber-800'}`}>
+                        {blog.postType === 'research' ? '🔬 Research Paper' : '🌱 Story'}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
                       <User className="w-3.5 h-3.5 text-primary" /> 
                       <span className="font-medium text-foreground">{blog.authorName}</span>
@@ -107,10 +129,10 @@ export default function PublicBlogsPage() {
                 )}
                 {blog.postType === "story" && (
                   <div className="mx-5 mb-5 pt-4 border-t border-border/50 text-xs text-amber-700/80 font-medium flex items-center gap-1.5">
-                    ✨ Community Action Lived Narrative
+                    ✨ Read Community Narrative
                   </div>
                 )}
-              </div>
+              </Link>
             ))
           )}
         </div>

@@ -30,6 +30,14 @@ def list_blogs(status: Optional[str] = None, db: Session = Depends(get_db)):
         rows = db.execute(text("SELECT * FROM blogs ORDER BY submitted_at DESC")).mappings().all()
     return [dict(r) for r in rows]
 
+@router.get("/blogs/{blog_id}")
+def get_blog(blog_id: int, db: Session = Depends(get_db)):
+    row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
+    if not row:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Blog not found")
+    return dict(row)
+
 @router.post("/blogs")
 def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
     db.execute(text("""
@@ -51,3 +59,9 @@ def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db))
                {"now": datetime.utcnow(), "feedback": action.feedback, "id": blog_id})
     db.commit()
     return {"message": "Blog rejected"}
+
+@router.delete("/blogs/{blog_id}")
+def delete_blog(blog_id: int, db: Session = Depends(get_db)):
+    db.execute(text("DELETE FROM blogs WHERE id = :id"), {"id": blog_id})
+    db.commit()
+    return {"message": "Blog deleted"}

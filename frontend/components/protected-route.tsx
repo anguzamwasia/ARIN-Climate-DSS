@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -17,13 +17,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       if (!user) {
         // Redirect to signin, optionally pass the return URL
         router.push(`/signin?redirect=${encodeURIComponent(pathname)}`)
+      } else if (adminOnly && user.email !== "admin@arin-africa.org") {
+        // Redirect non-admins
+        router.push("/")
       } else {
         setIsChecking(false)
       }
     }, 100)
     
     return () => clearTimeout(timer)
-  }, [user, router, pathname])
+  }, [user, router, pathname, adminOnly])
 
   if (isChecking) {
     return (

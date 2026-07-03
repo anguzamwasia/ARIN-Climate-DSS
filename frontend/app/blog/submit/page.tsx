@@ -66,10 +66,38 @@ export default function BlogSubmitPage() {
   const [imageError, setImageError] = useState<string | null>(null)
 
   useEffect(() => {
-    const saved = localStorage.getItem("arin_climate_blogs")
-    if (saved) {
-      setAllBlogs(JSON.parse(saved))
+    // Fetch all blogs from Postgres
+    const fetchBlogs = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/blogs`)
+        if (res.ok) {
+          const data = await res.json()
+          // Map snake_case to camelCase and unpack formData
+          const mapped = data.map((b: any) => ({
+            id: b.id,
+            title: b.title,
+            authorName: b.author_name,
+            postType: b.post_type,
+            status: b.status,
+            submittedAt: b.submitted_at,
+            imageUrl: b.image_url,
+            feedback: b.feedback,
+            formData: {
+              summary: b.summary,
+              findings: b.findings,
+              narrative: b.narrative,
+              impact: b.impact,
+              sources: b.sources,
+              background: b.background
+            }
+          }))
+          setAllBlogs(mapped)
+        }
+      } catch (err) {
+        console.error("Failed to fetch blogs", err)
+      }
     }
+    fetchBlogs()
     
     // Auto-fill author name from profile
     if (user && !formData.authorName) {
@@ -78,12 +106,11 @@ export default function BlogSubmitPage() {
   }, [user])
 
   useEffect(() => {
-    setFormData(prev => ({ authorName: prev.authorName || user?.name || "" }))
     setUploadedImageBase64(null)
     setImageError(null)
   }, [postType, user])
 
-  const userBlogs = allBlogs.filter(b => b.authorEmail === user?.email)
+  const userBlogs = allBlogs.filter(b => b.authorName === user?.name || b.authorName === formData.authorName)
 
   const handleInputChange = (id: string, value: string) => {
     setFormData((prev) => ({ ...prev, [id]: value }))
@@ -119,30 +146,48 @@ export default function BlogSubmitPage() {
 
     await new Promise((resolve) => setTimeout(resolve, 1200))
 
-    const fallbackImage = postType === "research"
-      ? "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800"
-      : "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800"
-
-    const newBlog: Blog = {
-      id: `blog-${Date.now()}`,
+    const payload = {
       title: formData.title || "Untitled Document",
-      authorName: formData.authorName || user?.name || "Anonymous Contributor",
-      authorEmail: user?.email,
-      imageUrl: uploadedImageBase64 || fallbackImage,
-      postType: postType,
-      status: "pending",
-      submittedAt: new Date().toISOString(),
-      formData: formData,
+      author_name: formData.authorName || user?.name || "Anonymous Contributor",
+      post_type: postType,
+      summary: formData.summary,
+      findings: formData.findings,
+      narrative: formData.narrative,
+      impact: formData.impact,
+      sources: formData.sources,
+      image_url: uploadedImageBase64 || null,
+      background: formData.background
     }
 
-    const updated = [newBlog, ...allBlogs]
-    setAllBlogs(updated)
-    localStorage.setItem("arin_climate_blogs", JSON.stringify(updated))
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/blogs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        // Optimistically add to list
+        const newBlog: Blog = {
+          id: `temp-${Date.now()}`,
+          title: payload.title,
+          authorName: payload.author_name,
+          imageUrl: payload.image_url,
+          postType: postType,
+          status: "pending",
+          submittedAt: new Date().toISOString(),
+          formData: formData,
+        }
+        setAllBlogs([newBlog, ...allBlogs])
+        setSubmitSuccess(true)
+        setFormData({ authorName: user?.name || "" })
+        setUploadedImageBase64(null)
+      }
+    } catch (err) {
+      console.error("Failed to submit blog", err)
+    }
 
     setIsSubmitting(false)
-    setSubmitSuccess(true)
-    setFormData({ authorName: user?.name || "" })
-    setUploadedImageBase64(null)
 
     setTimeout(() => setSubmitSuccess(false), 4000)
   }
@@ -234,12 +279,11 @@ export default function BlogSubmitPage() {
                             )}
                           </div>
                         ) : section.type === "input" ? (
-                          <Input
-                            value={formData[section.id] || ""}
-                            onChange={(e) => handleInputChange(section.id, e.target.value)}
-                            placeholder={section.placeholder}
-                            disabled={section.id === "authorName" && !!user?.name}
-                          />
+                            <Input
+                              value={formData[section.id] || ""}
+                              onChange={(e) => handleInputChange(section.id, e.target.value)}
+                              placeholder={section.placeholder}
+                            />
                         ) : (
                           <textarea
                             value={formData[section.id] || ""}
@@ -292,7 +336,7 @@ export default function BlogSubmitPage() {
                     <div key={blog.id} className="p-5 border bg-white rounded-xl flex flex-col gap-4 shadow-sm">
                       <div className="flex flex-col sm:flex-row gap-4 items-start justify-between border-b pb-4">
                         <div className="flex gap-4 items-start">
-                          <img src={blog.imageUrl} className="w-14 h-14 object-cover border rounded-lg bg-gray-50 flex-shrink-0" alt="" />
+                          {blog.imageUrl && <img src={blog.imageUrl} className="w-14 h-14 object-cover border rounded-lg bg-gray-50 flex-shrink-0" alt="" />}
                           <div>
                             <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mr-2 ${blog.postType === 'research' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
                               {blog.postType} framework

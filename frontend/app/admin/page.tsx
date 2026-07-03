@@ -6,6 +6,7 @@ import {
   Check, X, User, FileText, LayoutDashboard, 
   Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines, BookOpen
 } from "lucide-react"
+import { ProtectedRoute } from "@/components/protected-route"
 
 // Types matching current systems
 interface Blog {
@@ -40,6 +41,35 @@ export default function UnifiedAdminPortal() {
   const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
   const [showModal, setShowModal] = useState(false)
+  const [isProcessingBlog, setIsProcessingBlog] = useState(false)
+
+  const fetchBlogs = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/v1/blogs`)
+      if (res.ok) {
+        const data = await res.json()
+        const mapped = data.map((b: any) => ({
+          id: b.id.toString(),
+          title: b.title,
+          authorName: b.author_name,
+          postType: b.post_type,
+          status: b.status,
+          submittedAt: b.submitted_at,
+          imageUrl: b.image_url,
+          feedback: b.feedback,
+          formData: {
+            summary: b.summary,
+            findings: b.findings,
+            narrative: b.narrative,
+            impact: b.impact,
+            sources: b.sources,
+            background: b.background
+          }
+        }))
+        setAllBlogs(mapped)
+      }
+    } catch (err) {}
+  }
 
   // --- MEDIA / DOC STATE MANAGEMENT ---
   const [uploadingFile, setUploadingFile] = useState<File | null>(null)
@@ -48,9 +78,7 @@ export default function UnifiedAdminPortal() {
   const [localHistory, setLocalHistory] = useState<LocalMediaLog[]>([])
 
   useEffect(() => {
-    // Synchronize local browser caches for testing mock payloads
-    const savedBlogs = localStorage.getItem("arin_climate_blogs")
-    if (savedBlogs) setAllBlogs(JSON.parse(savedBlogs))
+    fetchBlogs()
 
     const savedMedia = localStorage.getItem("arin_processed_media_logs")
     if (savedMedia) {
@@ -69,28 +97,47 @@ export default function UnifiedAdminPortal() {
   const pendingBlogs = allBlogs.filter((b) => b.status === "pending")
 
   // --- ACTIONS: BLOG QUEUE ---
-  const handleApprove = (id: string) => {
-    const updated = allBlogs.map((blog) =>
-      blog.id === id ? { ...blog, status: "approved" as const, reviewedAt: new Date().toISOString() } : blog
-    )
-    setAllBlogs(updated)
-    localStorage.setItem("arin_climate_blogs", JSON.stringify(updated))
-    alert("Content successfully published to public views.")
+  const handleApprove = async (id: string) => {
+    setIsProcessingBlog(true)
+    try {
+      const res = await fetch(`${API_URL}/api/v1/blogs/${id}/approve`, { method: "PATCH" })
+      if (res.ok) {
+        await fetchBlogs()
+        alert("Content successfully published to public views.")
+      }
+    } catch (err) {}
+    setIsProcessingBlog(false)
   }
 
-  const handleRejectSubmit = () => {
+  const handleRejectSubmit = async () => {
     if (!selectedBlog || !rejectionReason.trim()) return
+    setIsProcessingBlog(true)
+    try {
+      const res = await fetch(`${API_URL}/api/v1/blogs/${selectedBlog.id}/reject`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback: rejectionReason.trim() })
+      })
+      if (res.ok) {
+        await fetchBlogs()
+        setShowModal(false)
+        setRejectionReason("")
+        setSelectedBlog(null)
+      }
+    } catch (err) {}
+    setIsProcessingBlog(false)
+  }
 
-    const updated = allBlogs.map((blog) =>
-      blog.id === selectedBlog.id
-        ? { ...blog, status: "rejected" as const, reviewedAt: new Date().toISOString(), feedback: rejectionReason.trim() }
-        : blog
-    )
-    setAllBlogs(updated)
-    localStorage.setItem("arin_climate_blogs", JSON.stringify(updated))
-    setShowModal(false)
-    setRejectionReason("")
-    setSelectedBlog(null)
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this blog? This action cannot be undone.")) return
+    setIsProcessingBlog(true)
+    try {
+      const res = await fetch(`${API_URL}/api/v1/blogs/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        await fetchBlogs()
+      }
+    } catch (err) {}
+    setIsProcessingBlog(false)
   }
 
   // --- ACTIONS: FILES (Media & Docs) ---
@@ -204,7 +251,8 @@ export default function UnifiedAdminPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col">
+    <ProtectedRoute adminOnly={true}>
+      <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col">
       {/* GLOBAL HEADBOARD BAR */}
       <header className="sticky top-0 z-50 bg-white border-b h-16 flex items-center justify-between px-6 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -267,7 +315,7 @@ export default function UnifiedAdminPortal() {
                       <div key={blog.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b pb-4 mb-4">
                           <div className="flex gap-4 items-start">
-                            <img src={blog.imageUrl || "/placeholder.svg"} className="w-16 h-16 object-cover bg-gray-100 rounded-lg border flex-shrink-0" alt="" />
+                            {blog.imageUrl && <img src={blog.imageUrl} className="w-16 h-16 object-cover bg-gray-100 rounded-lg border flex-shrink-0" alt="" />}
                             <div>
                               <div className="flex items-center gap-2">
                                 <h2 className="text-lg font-bold text-gray-900">{blog.title}</h2>
@@ -282,8 +330,9 @@ export default function UnifiedAdminPortal() {
                           </div>
                           
                           <div className="flex gap-2 w-full sm:w-auto justify-end">
-                            <button onClick={() => { setSelectedBlog(blog); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium">Reject</button>
-                            <button onClick={() => handleApprove(blog.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700">Approve</button>
+                            <button disabled={isProcessingBlog} onClick={() => handleDelete(blog.id)} className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-sm bg-gray-50 font-medium hover:bg-gray-100 transition-colors">Delete</button>
+                            <button disabled={isProcessingBlog} onClick={() => { setSelectedBlog(blog); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors">Reject</button>
+                            <button disabled={isProcessingBlog} onClick={() => handleApprove(blog.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors">Approve</button>
                           </div>
                         </div>
 
@@ -514,5 +563,6 @@ export default function UnifiedAdminPortal() {
         </div>
       )}
     </div>
+    </ProtectedRoute>
   )
 }

@@ -43,6 +43,8 @@ export default function ChatbotPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const [isInitialized, setIsInitialized] = useState(false)
+
   // Load chats from local storage
   useEffect(() => {
     if (user) {
@@ -51,20 +53,22 @@ export default function ChatbotPage() {
         try {
           const parsed = JSON.parse(stored)
           setChats(parsed)
-          if (parsed.length > 0 && !activeChatId) {
-            setActiveChatId(parsed[0].id)
-          }
+          setActiveChatId((prev) => {
+            if (!prev && parsed.length > 0) return parsed[0].id
+            return prev
+          })
         } catch(e) {}
       }
+      setIsInitialized(true)
     }
-  }, [user, activeChatId])
+  }, [user])
 
   // Save chats to local storage
   useEffect(() => {
-    if (user) {
+    if (user && isInitialized) {
       localStorage.setItem(`arin_chats_${user.email}`, JSON.stringify(chats))
     }
-  }, [chats, user])
+  }, [chats, user, isInitialized])
 
   const activeMessages = chats.find(c => c.id === activeChatId)?.messages || []
 
@@ -128,7 +132,14 @@ export default function ChatbotPage() {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: data.answer,
-        sources: data.sources?.map((s: string) => ({ title: s, url: "#" })) || [],
+        sources: data.sources?.map((s: any) => {
+          const title = typeof s === 'string' ? s : s.title;
+          let url = typeof s === 'string' ? "#" : (s.url || "#");
+          if (url !== "#" && !url.startsWith("http")) {
+            url = `${API_URL}/uploads/${url}`;
+          }
+          return { title, url };
+        }) || [],
         timestamp: new Date().toISOString(),
       }
       
