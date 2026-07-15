@@ -27,4 +27,3 @@ email-validator
 aiofiles
 requests
 bcrypt
-EOF
