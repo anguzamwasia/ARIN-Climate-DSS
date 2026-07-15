@@ -186,7 +186,7 @@ export function FeaturesSection() {
   const [countryCount, setCountryCount] = useState<number | null>(null)
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/documents/stats/countries")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/documents/stats/countries`)
       .then(res => res.json())
       .then(data => {
         if (data && data.count) {
