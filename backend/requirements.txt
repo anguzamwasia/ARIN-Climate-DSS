@@ -11,3 +11,7 @@ apscheduler==3.10.4
 google-genai
 chromadb
 sentence-transformers
+PyMuPDF
+python-docx
+pandas
+openpyxl

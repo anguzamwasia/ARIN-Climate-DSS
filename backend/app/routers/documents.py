@@ -57,6 +57,16 @@ def get_global_stats(db: Session = Depends(get_db)):
         ]
     }
 
+@router.get("/api/v1/admin/content/stats")
+def get_admin_content_stats(db: Session = Depends(get_db)):
+    research_papers = db.query(func.count(Document.id)).filter(Document.source == 'ARIN').scalar() or 0
+    media_processed = db.query(func.count(Document.id)).filter(Document.source == 'WHISPER').scalar() or 0
+    
+    return {
+        "research_papers": research_papers,
+        "media_processed": media_processed
+    }
+
 @router.get("/documents", response_model=list[DocumentOut])
 def list_documents(
     source: Optional[str] = Query(None),
@@ -84,7 +94,7 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
     return doc
 
 @router.post("/api/v1/admin/documents/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
     # Define acceptable research paper formats
     allowed_extensions = {".pdf", ".docx", ".csv", ".xlsx"}
     ext = os.path.splitext(file.filename)[1].lower()
@@ -96,8 +106,8 @@ async def upload_document(file: UploadFile = File(...)):
     upload_dir = "uploads/documents"
     os.makedirs(upload_dir, exist_ok=True)
     
-    # Generate unique filename to prevent collisions
-    safe_filename = f"{uuid.uuid4()}{ext}"
+    # Use the original filename instead of UUID
+    safe_filename = file.filename
     file_path = os.path.join(upload_dir, safe_filename)
 
     try:
@@ -105,13 +115,66 @@ async def upload_document(file: UploadFile = File(...)):
         with open(file_path, "wb") as f:
             f.write(content)
             
-        # Returning success response. 
-        # (In a fully implemented system, you would parse the file here and insert into ChromaDB / PostgreSQL)
+        # Parse text based on extension
+        extracted_text = ""
+        if ext == ".pdf":
+            import fitz
+            doc = fitz.open(file_path)
+            extracted_text = "\n".join(page.get_text() for page in doc)
+        elif ext == ".docx":
+            import docx
+            doc = docx.Document(file_path)
+            extracted_text = "\n".join(para.text for para in doc.paragraphs)
+        elif ext == ".csv":
+            import pandas as pd
+            df = pd.read_csv(file_path)
+            extracted_text = df.to_string()
+        elif ext == ".xlsx":
+            import pandas as pd
+            df = pd.read_excel(file_path)
+            extracted_text = df.to_string()
+            
+        from datetime import datetime
+        # Insert into Document table
+        new_doc = Document(
+            title=file.filename,
+            source="ARIN",
+            country="Africa (Global)", # or some default
+            url="#",
+            file_url=safe_filename,
+            scraped_at=datetime.utcnow(),
+            content_text=extracted_text,
+            type="Research Paper"
+        )
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc)
+        
+        # Insert into ChromaDB
+        import chromadb
+        chroma_client = chromadb.PersistentClient(path="./chroma_db")
+        collection = chroma_client.get_or_create_collection(name="climate_docs")
+        
+        text_to_embed = f"Title: {new_doc.title}\nSource: {new_doc.source}\nCountry: {new_doc.country}\nContent: {extracted_text[:3000]}"
+        
+        collection.upsert(
+            documents=[text_to_embed],
+            metadatas=[{
+                "title": new_doc.title,
+                "source": new_doc.source,
+                "country": new_doc.country,
+                "original_id": str(new_doc.id)
+            }],
+            ids=[f"doc_{new_doc.id}"]
+        )
+
         return {
             "status": "success",
-            "message": "File uploaded and stored securely.",
+            "message": "File uploaded, parsed, and embedded successfully.",
             "original_name": file.filename,
             "saved_path": file_path
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

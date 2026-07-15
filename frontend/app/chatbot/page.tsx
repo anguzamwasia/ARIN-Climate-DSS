@@ -295,10 +295,17 @@ export default function ChatbotPage() {
                           {message.sources && message.sources.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
                               {message.sources.map((source, idx) => (
-                                <a key={idx} href={source.url} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-full text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
-                                  <FileText className="w-3 h-3 text-accent" />
-                                  <span className="truncate max-w-[200px]">{source.title}</span>
-                                </a>
+                                source.url !== "#" ? (
+                                  <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-full text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                                    <FileText className="w-3 h-3 text-accent" />
+                                    <span className="truncate max-w-[200px]">{source.title}</span>
+                                  </a>
+                                ) : (
+                                  <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-border rounded-full text-xs font-medium text-muted-foreground cursor-default">
+                                    <FileText className="w-3 h-3 text-muted-foreground" />
+                                    <span className="truncate max-w-[200px]">{source.title}</span>
+                                  </span>
+                                )
                               ))}
                             </div>
                           )}

@@ -81,7 +81,7 @@ const features = [
   {
     id: "chatbot",
     icon: Bot,
-    title: "AI Climate Assistant",
+    title: "ARIN AI Chatbot",
     subtitle: "Ask Questions Naturally",
     description: "Get instant answers to your climate questions. Our AI assistant understands natural language and provides sourced responses from our comprehensive database.",
     capabilities: [

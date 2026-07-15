@@ -27,7 +27,7 @@ export default function BlogDetailPage() {
   useEffect(() => {
     const fetchBlog = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/blogs/${id}`)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs/${id}`)
         if (res.ok) {
           const data = await res.json()
           setBlog({
@@ -148,7 +148,7 @@ export default function BlogDetailPage() {
             </div>
           )}
 
-          <div className="p-6 md:p-10 space-y-10">
+          <div className="p-6 md:p-10 space-y-10 overflow-hidden break-words">
             {blog.postType === "research" ? (
               <>
                 {blog.formData?.background && (
@@ -157,7 +157,7 @@ export default function BlogDetailPage() {
                       <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
                       Background Context
                     </h2>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{blog.formData.background}</p>
+                    <div className="text-gray-700 leading-relaxed prose prose-blue max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.background }} />
                   </section>
                 )}
                 
@@ -167,7 +167,7 @@ export default function BlogDetailPage() {
                       <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
                       Executive Summary
                     </h2>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{blog.formData.summary}</p>
+                    <div className="text-gray-700 leading-relaxed prose prose-blue max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary }} />
                   </section>
                 )}
 
@@ -177,14 +177,24 @@ export default function BlogDetailPage() {
                       <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
                       Key Findings & Insights
                     </h2>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{blog.formData.findings}</p>
+                    <div className="text-gray-700 leading-relaxed prose prose-blue max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.findings }} />
+                  </section>
+                )}
+
+                {blog.formData?.implications && (
+                  <section>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
+                      Policy Implications
+                    </h2>
+                    <div className="text-gray-700 leading-relaxed prose prose-blue max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.implications }} />
                   </section>
                 )}
 
                 {blog.formData?.sources && (
                   <section className="pt-6 border-t border-gray-100">
                     <h2 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider">References & Sources</h2>
-                    <p className="text-gray-500 text-sm italic leading-relaxed whitespace-pre-wrap">{blog.formData.sources}</p>
+                    <div className="text-gray-500 text-sm italic leading-relaxed prose prose-blue max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.sources }} />
                   </section>
                 )}
               </>
@@ -196,7 +206,7 @@ export default function BlogDetailPage() {
                       <span className="w-1.5 h-6 bg-amber-600 rounded-full"></span>
                       Story Premise
                     </h2>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-lg italic">{blog.formData.summary}</p>
+                    <div className="text-gray-700 leading-relaxed text-lg italic prose prose-amber max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary }} />
                   </section>
                 )}
 
@@ -206,7 +216,7 @@ export default function BlogDetailPage() {
                       <span className="w-1.5 h-6 bg-amber-600 rounded-full"></span>
                       Lived Narrative
                     </h2>
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{blog.formData.narrative}</p>
+                    <div className="text-gray-700 leading-relaxed prose prose-amber max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.narrative }} />
                   </section>
                 )}
 
@@ -215,7 +225,7 @@ export default function BlogDetailPage() {
                     <h2 className="text-xl font-bold text-amber-900 mb-4 flex items-center gap-2">
                       Community Impact & Action
                     </h2>
-                    <p className="text-amber-800 leading-relaxed whitespace-pre-wrap">{blog.formData.impact}</p>
+                    <div className="text-amber-800 leading-relaxed prose prose-amber max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.impact }} />
                   </section>
                 )}
               </>

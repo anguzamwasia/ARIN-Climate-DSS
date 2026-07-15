@@ -39,7 +39,7 @@ const AfricaMap = ({ countryCounts, selectedCountry, onSelectCountry }: AfricaMa
 
   const colorScale = scaleLinear<string>()
     .domain([0, maxCount * 0.25, maxCount * 0.5, maxCount * 0.75, maxCount])
-    .range(["#f8fafc", "#99f6e4", "#14b8a6", "#0f766e", "#042f2e"])
+    .range(["#f1f5f9", "#bfdbfe", "#60a5fa", "#2563eb", "#021d49"])
 
 
   return (
@@ -109,8 +109,8 @@ const AfricaMap = ({ countryCounts, selectedCountry, onSelectCountry }: AfricaMa
                     }}
                     style={{
                       default: { fill, outline: "none", stroke: "#FFFFFF", strokeWidth: 0.5 },
-                      hover: { fill: count > 0 ? "#14b8a6" : "#D4D4D4", outline: "none", cursor: count > 0 ? "pointer" : "default" },
-                      pressed: { fill: "#0f766e", outline: "none" },
+                      hover: { fill: count > 0 ? "#2563eb" : "#D4D4D4", outline: "none", cursor: count > 0 ? "pointer" : "default" },
+                      pressed: { fill: "#021d49", outline: "none" },
                     }}
                   />
                 )

@@ -5,9 +5,13 @@ import Image from "next/image"
 import Link from "next/link"
 import { 
   Check, X, User, FileText, LayoutDashboard, 
-  Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines, BookOpen
+  Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines, BookOpen, Edit
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import dynamic from "next/dynamic"
+import "react-quill-new/dist/quill.snow.css"
+
+const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false })
 
 // Types matching current systems
 interface Blog {
@@ -41,12 +45,40 @@ export default function UnifiedAdminPortal() {
   const [allBlogs, setAllBlogs] = useState<Blog[]>([])
   const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
+  const [blogActionMessage, setBlogActionMessage] = useState("")
   const [showModal, setShowModal] = useState(false)
   const [isProcessingBlog, setIsProcessingBlog] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [blogToEdit, setBlogToEdit] = useState<Blog | null>(null)
+  const [editFormData, setEditFormData] = useState<Record<string, string>>({})
+
+  // User Stats
+  const [userStats, setUserStats] = useState({ total_users: 0, active_users: 0 })
+  const [contentStats, setContentStats] = useState({ research_papers: 0, media_processed: 0 })
+
+  const fetchUserStats = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/v1/admin/users/stats`)
+      if (res.ok) {
+        const data = await res.json()
+        setUserStats(data)
+      }
+    } catch (err) {}
+  }
+
+  const fetchContentStats = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/v1/admin/content/stats`)
+      if (res.ok) {
+        const data = await res.json()
+        setContentStats(data)
+      }
+    } catch (err) {}
+  }
 
   const fetchBlogs = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/blogs`)
+      const res = await fetch(`${API_URL}/blogs`)
       if (res.ok) {
         const data = await res.json()
         const mapped = data.map((b: any) => ({
@@ -80,6 +112,8 @@ export default function UnifiedAdminPortal() {
 
   useEffect(() => {
     fetchBlogs()
+    fetchUserStats()
+    fetchContentStats()
 
     const savedMedia = localStorage.getItem("arin_processed_media_logs")
     if (savedMedia) {
@@ -98,15 +132,17 @@ export default function UnifiedAdminPortal() {
 
   // Filter lists dynamically
   const pendingBlogs = allBlogs.filter((b) => b.status === "pending")
+  const approvedBlogs = allBlogs.filter((b) => b.status === "approved")
 
   // --- ACTIONS: BLOG QUEUE ---
   const handleApprove = async (id: string) => {
     setIsProcessingBlog(true)
     try {
-      const res = await fetch(`${API_URL}/api/v1/blogs/${id}/approve`, { method: "PATCH" })
+      const res = await fetch(`${API_URL}/blogs/${id}/approve`, { method: "PATCH" })
       if (res.ok) {
         await fetchBlogs()
-        alert("Content successfully published to public views.")
+        setBlogActionMessage("✅ Verified successfully!")
+        setTimeout(() => setBlogActionMessage(""), 3000)
       }
     } catch (err) {}
     setIsProcessingBlog(false)
@@ -116,7 +152,7 @@ export default function UnifiedAdminPortal() {
     if (!selectedBlog || !rejectionReason.trim()) return
     setIsProcessingBlog(true)
     try {
-      const res = await fetch(`${API_URL}/api/v1/blogs/${selectedBlog.id}/reject`, {
+      const res = await fetch(`${API_URL}/blogs/${selectedBlog.id}/reject`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ feedback: rejectionReason.trim() })
@@ -131,16 +167,44 @@ export default function UnifiedAdminPortal() {
     setIsProcessingBlog(false)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this blog? This action cannot be undone.")) return
+  const handleEditSubmit = async () => {
+    if (!blogToEdit) return
     setIsProcessingBlog(true)
     try {
-      const res = await fetch(`${API_URL}/api/v1/blogs/${id}`, { method: "DELETE" })
+      const payload = {
+        title: editFormData.title || blogToEdit.title,
+        author_name: blogToEdit.authorName,
+        post_type: blogToEdit.postType,
+        summary: editFormData.summary || blogToEdit.formData?.summary,
+        findings: editFormData.findings || blogToEdit.formData?.findings,
+        narrative: editFormData.narrative || blogToEdit.formData?.narrative,
+        impact: editFormData.impact || blogToEdit.formData?.impact,
+        sources: editFormData.sources || blogToEdit.formData?.sources,
+        image_url: blogToEdit.imageUrl,
+        background: editFormData.background || blogToEdit.formData?.background,
+        implications: editFormData.implications || blogToEdit.formData?.implications
+      }
+
+      const res = await fetch(`${API_URL}/blogs/${blogToEdit.id}`, { 
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      
       if (res.ok) {
         await fetchBlogs()
       }
     } catch (err) {}
     setIsProcessingBlog(false)
+    setShowEditModal(false)
+    setBlogToEdit(null)
+  }
+
+  const handleEditChange = (field: string, value: string) => {
+    setEditFormData(prev => {
+      if (prev[field] === value) return prev;
+      return { ...prev, [field]: value };
+    })
   }
 
   // --- ACTIONS: FILES (Media & Docs) ---
@@ -277,9 +341,14 @@ export default function UnifiedAdminPortal() {
           >
             <LayoutDashboard className="w-4 h-4" />
             <span>Blog Submissions</span>
-            {pendingBlogs.length > 0 && (
-              <span className="ml-auto bg-emerald-600 text-white font-bold text-xs px-2 py-0.5 rounded-full">{pendingBlogs.length}</span>
-            )}
+            <span className="ml-auto flex items-center gap-1">
+              {approvedBlogs.length > 0 && (
+                <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2 py-0.5 rounded-full" title="Approved">{approvedBlogs.length}</span>
+              )}
+              {pendingBlogs.length > 0 && (
+                <span className="bg-emerald-600 text-white font-bold text-xs px-2 py-0.5 rounded-full" title="Pending">{pendingBlogs.length}</span>
+              )}
+            </span>
           </button>
           <button 
             onClick={() => switchTab("research")}
@@ -295,6 +364,34 @@ export default function UnifiedAdminPortal() {
             <Video className="w-4 h-4" />
             <span>Media Ingestion Node</span>
           </button>
+
+          <div className="mt-8 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            User Statistics
+          </div>
+          <div className="px-4 py-3 bg-gray-50 rounded-lg border border-gray-100 mx-2">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-gray-500 font-medium">Total Registered</span>
+              <span className="text-sm font-bold text-gray-900">{userStats.total_users}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500 font-medium">Active (Logged In)</span>
+              <span className="text-sm font-bold text-emerald-600">{userStats.active_users}</span>
+            </div>
+          </div>
+
+          <div className="mt-6 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Content Ingestion
+          </div>
+          <div className="px-4 py-3 bg-gray-50 rounded-lg border border-gray-100 mx-2">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-gray-500 font-medium">Research Papers</span>
+              <span className="text-sm font-bold text-blue-600">{contentStats.research_papers}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500 font-medium">Processed Media</span>
+              <span className="text-sm font-bold text-blue-600">{contentStats.media_processed}</span>
+            </div>
+          </div>
         </aside>
 
         {/* CONTAINER WORKSPACE VIEWPORT LAYER */}
@@ -304,9 +401,16 @@ export default function UnifiedAdminPortal() {
             {/* TAB SECTION A: BLOG WORKFLOW ARRAY */}
             {activeTab === "blogs" && (
               <>
-                <div className="mb-8">
-                  <h1 className="text-2xl font-bold text-gray-900">Review Submissions Queue</h1>
-                  <p className="text-sm text-gray-500">Inspect research methodologies and community stories awaiting approval.</p>
+                <div className="mb-8 flex justify-between items-start">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Review Submissions Queue</h1>
+                    <p className="text-sm text-gray-500">Inspect research methodologies and community stories awaiting approval.</p>
+                  </div>
+                  {blogActionMessage && (
+                    <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-sm font-medium border border-emerald-200 shadow-sm animate-in fade-in slide-in-from-top-2">
+                      {blogActionMessage}
+                    </div>
+                  )}
                 </div>
 
                 {pendingBlogs.length === 0 ? (
@@ -334,25 +438,26 @@ export default function UnifiedAdminPortal() {
                           </div>
                           
                           <div className="flex gap-2 w-full sm:w-auto justify-end">
-                            <button disabled={isProcessingBlog} onClick={() => handleDelete(blog.id)} className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-sm bg-gray-50 font-medium hover:bg-gray-100 transition-colors">Delete</button>
+                            <button disabled={isProcessingBlog} onClick={() => { setBlogToEdit(blog); setEditFormData({ title: blog.title, ...(blog.formData || {}) }); setShowEditModal(true); }} className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-sm bg-blue-50 font-medium hover:bg-blue-100 transition-colors flex items-center gap-1"><Edit className="w-3.5 h-3.5" /> Edit</button>
                             <button disabled={isProcessingBlog} onClick={() => { setSelectedBlog(blog); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors">Reject</button>
                             <button disabled={isProcessingBlog} onClick={() => handleApprove(blog.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors">Approve</button>
                           </div>
                         </div>
 
                         {blog.formData && (
-                          <div className="space-y-3 text-sm bg-gray-50 p-4 rounded-lg border">
+                          <div className="space-y-3 text-sm bg-gray-50 p-4 rounded-lg border overflow-hidden break-words">
                             {blog.postType === "research" ? (
                               <>
-                                <div><span className="font-semibold text-gray-700">Executive Summary:</span><p className="text-gray-600 mt-0.5">{blog.formData.summary}</p></div>
-                                <div><span className="font-semibold text-gray-700">Key Findings:</span><p className="text-gray-600 mt-0.5">{blog.formData.findings}</p></div>
-                                <div><span className="font-semibold text-gray-700">References:</span><p className="text-gray-500 text-xs italic mt-0.5">{blog.formData.sources}</p></div>
+                                <div><span className="font-semibold text-gray-700">Executive Summary:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
+                                <div><span className="font-semibold text-gray-700">Key Findings:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.findings || "" }} /></div>
+                                <div><span className="font-semibold text-gray-700">Policy Implications:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.implications || "" }} /></div>
+                                <div><span className="font-semibold text-gray-700">References:</span><div className="text-gray-500 text-xs italic mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.sources || "" }} /></div>
                               </>
                             ) : (
                               <>
-                                <div><span className="font-semibold text-amber-900">Story Premise:</span><p className="text-gray-600 mt-0.5">{blog.formData.summary}</p></div>
-                                <div><span className="font-semibold text-amber-900">Lived Narrative:</span><p className="text-gray-600 mt-0.5">{blog.formData.narrative}</p></div>
-                                <div><span className="font-semibold text-amber-900">Impact Indicators:</span><p className="text-gray-600 mt-0.5">{blog.formData.impact}</p></div>
+                                <div><span className="font-semibold text-amber-900">Story Premise:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
+                                <div><span className="font-semibold text-amber-900">Lived Narrative:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.narrative || "" }} /></div>
+                                <div><span className="font-semibold text-amber-900">Impact Indicators:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.impact || "" }} /></div>
                               </>
                             )}
                           </div>
@@ -562,6 +667,73 @@ export default function UnifiedAdminPortal() {
             <div className="flex justify-end gap-2">
               <button onClick={() => { setShowModal(false); setRejectionReason(""); }} className="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
               <button onClick={handleRejectSubmit} disabled={!rejectionReason.trim()} className="px-4 py-2 bg-red-600 text-white rounded text-sm font-medium disabled:opacity-50">Confirm Rejection</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showEditModal && blogToEdit && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-xl border animate-in fade-in zoom-in-95 duration-100">
+            <div className="p-6 border-b flex-shrink-0">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Edit Submission</h2>
+              <p className="text-sm text-gray-500">Make necessary changes before approving.</p>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1.5">Title</label>
+                <input 
+                  value={editFormData.title || ""} 
+                  onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })} 
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+
+              {blogToEdit.postType === "research" ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Executive Summary</label>
+                    <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.summary || ""} onChange={(v) => handleEditChange("summary", v)} /></div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Background Context</label>
+                    <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.background || ""} onChange={(v) => handleEditChange("background", v)} /></div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Key Findings</label>
+                    <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.findings || ""} onChange={(v) => handleEditChange("findings", v)} /></div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Implications</label>
+                    <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.implications || ""} onChange={(v) => handleEditChange("implications", v)} /></div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Sources</label>
+                    <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.sources || ""} onChange={(v) => handleEditChange("sources", v)} /></div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Story Premise</label>
+                    <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.summary || ""} onChange={(v) => handleEditChange("summary", v)} /></div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Narrative</label>
+                    <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.narrative || ""} onChange={(v) => handleEditChange("narrative", v)} /></div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Impact</label>
+                    <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.impact || ""} onChange={(v) => handleEditChange("impact", v)} /></div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="p-6 border-t flex-shrink-0 flex justify-end gap-2 bg-gray-50">
+              <button onClick={() => { setShowEditModal(false); setBlogToEdit(null); }} className="px-4 py-2 border border-gray-300 bg-white rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors font-medium">Cancel</button>
+              <button onClick={handleEditSubmit} disabled={isProcessingBlog} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium shadow-sm transition-colors disabled:opacity-50">Save Changes</button>
             </div>
           </div>
         </div>

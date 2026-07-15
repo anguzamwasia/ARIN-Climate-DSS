@@ -28,7 +28,7 @@ export default function KenyaMapClient({ countyCounts, selectedCounty, onSelectC
 
   const colorScale = scaleLinear<string>()
     .domain([0, maxCount * 0.25, maxCount * 0.5, maxCount * 0.75, maxCount])
-    .range(["#f8fafc", "#99f6e4", "#14b8a6", "#0f766e", "#042f2e"])
+    .range(["#f1f5f9", "#bfdbfe", "#60a5fa", "#2563eb", "#021d49"])
 
   if (!geoData) return null
 
@@ -52,7 +52,7 @@ export default function KenyaMapClient({ countyCounts, selectedCounty, onSelectC
               fillColor: count > 0 ? colorScale(count) : "#f1f5f9",
               weight: isSelected ? 2.5 : 1,
               opacity: 1,
-              color: isSelected ? "#0f766e" : "#94a3b8", // Stroke color
+              color: isSelected ? "#021d49" : "#94a3b8", // Stroke color
               fillOpacity: count > 0 ? 0.8 : 0.4,
             }
           }}
@@ -72,7 +72,7 @@ export default function KenyaMapClient({ countyCounts, selectedCounty, onSelectC
                 const l = e.target;
                 l.setStyle({
                   weight: 2,
-                  color: '#0f766e',
+                  color: '#021d49',
                   fillOpacity: 0.9
                 });
                 l.bringToFront();
@@ -83,7 +83,7 @@ export default function KenyaMapClient({ countyCounts, selectedCounty, onSelectC
                 const count = countyCounts[countyName] || 0
                 l.setStyle({
                   weight: isSelected ? 2.5 : 1,
-                  color: isSelected ? "#0f766e" : "#94a3b8",
+                  color: isSelected ? "#021d49" : "#94a3b8",
                   fillOpacity: count > 0 ? 0.8 : 0.4,
                 });
                 if (!isSelected) {
@@ -100,7 +100,7 @@ export default function KenyaMapClient({ countyCounts, selectedCounty, onSelectC
         <h4 className="font-semibold text-foreground mb-2">Reports Density</h4>
         <div className="flex items-center gap-3">
           <span className="text-muted-foreground">0</span>
-          <div className="w-32 h-3 rounded-full bg-gradient-to-r from-white to-[#14b8a6] border border-slate-200"></div>
+          <div className="w-32 h-3 rounded-full bg-gradient-to-r from-white to-[#021d49] border border-slate-200"></div>
           <span className="font-medium">{maxCount}+</span>
         </div>
         {selectedCounty && (

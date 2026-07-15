@@ -27,21 +27,44 @@ class KoboWebhookPayload(BaseModel):
 
 
 def save_transcript_to_db(filename: str, transcript: str, country: str = ""):
+    from app.models.document import Document
     db = SessionLocal()
     try:
-        db.execute(text("""
-            INSERT INTO documents (title, url, date, type, body, file_url, source, country, scraped_at, content_text)
-            VALUES (:title, '', '', 'transcript', :body, :file_url, 'WHISPER', :country, :scraped_at, :content_text)
-        """), {
-            "title": f"Transcript: {filename}",
-            "body": transcript[:300],
-            "file_url": filename,
-            "country": country,
-            "scraped_at": datetime.utcnow(),
-            "content_text": transcript,
-        })
+        new_doc = Document(
+            title=f"Transcript: {filename}",
+            url="",
+            date="",
+            type="transcript",
+            body=transcript[:300],
+            file_url=filename,
+            source="WHISPER",
+            country=country,
+            scraped_at=datetime.utcnow(),
+            content_text=transcript
+        )
+        db.add(new_doc)
         db.commit()
-        logger.info(f"Saved transcript for {filename} into documents table")
+        db.refresh(new_doc)
+        logger.info(f"Saved transcript for {filename} into documents table with ID {new_doc.id}")
+
+        # Insert into ChromaDB
+        import chromadb
+        chroma_client = chromadb.PersistentClient(path="./chroma_db")
+        collection = chroma_client.get_or_create_collection(name="climate_docs")
+        
+        text_to_embed = f"Title: {new_doc.title}\nSource: {new_doc.source}\nCountry: {new_doc.country}\nContent: {transcript[:3000]}"
+        
+        collection.upsert(
+            documents=[text_to_embed],
+            metadatas=[{
+                "title": new_doc.title,
+                "source": new_doc.source,
+                "country": new_doc.country or "Unknown",
+                "original_id": str(new_doc.id)
+            }],
+            ids=[f"doc_{new_doc.id}"]
+        )
+        logger.info(f"Embedded transcript for {filename} into ChromaDB")
     finally:
         db.close()
 

@@ -1,15 +1,15 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowRight, Database, Bot, BarChart3, FileText } from "lucide-react"
+import { ArrowRight, Database, Bot, BarChart3, FileText, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
 const features = [
   { icon: Database, label: "Multi-Source Data" },
-  { icon: Bot, label: "AI Chatbot" },
-  { icon: BarChart3, label: "Real-Time Viz" },
-  { icon: FileText, label: "Blog System" },
+  { icon: Bot, label: "ARIN AI Chatbot" },
+  { icon: BarChart3, label: "Real-Time Insights" },
+  { icon: Users, label: "User Community" },
 ]
 
 export function HeroSection() {
@@ -127,10 +127,10 @@ export function HeroSection() {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="relative hidden lg:block"
           >
-            <div className="relative w-full aspect-square max-w-lg mx-auto">
+            <div className="relative w-full aspect-square max-w-[400px] mx-auto">
               {/* Central Hub */}
               <motion.div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-accent flex items-center justify-center shadow-2xl shadow-accent/30"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-accent flex items-center justify-center shadow-2xl shadow-accent/30"
                 animate={{
                   scale: [1, 1.05, 1],
                 }}
@@ -141,21 +141,21 @@ export function HeroSection() {
                 }}
               >
                 <div className="text-center text-white">
-                  <div className="text-2xl font-bold">DSS</div>
-                  <div className="text-xs opacity-80">Climate AI</div>
+                  <div className="text-xl font-bold">DSS</div>
+                  <div className="text-[10px] opacity-80 uppercase tracking-wider mt-0.5">ARIN AI</div>
                 </div>
               </motion.div>
 
               {/* Orbiting Elements */}
               {[
-                { angle: 0, icon: Database, label: "Data", delay: 0, href: "/data-sources" },
-                { angle: 90, icon: Bot, label: "AI", delay: 0.5, href: null },
-                { angle: 180, icon: BarChart3, label: "Viz", delay: 1, href: null },
-                { angle: 270, icon: FileText, label: "Blog", delay: 1.5, href: null },
+                { angle: 270, icon: Database, label: "Data", delay: 0, href: "/data-sources" },
+                { angle: 0, icon: BarChart3, label: "Insights", delay: 0.5, href: null },
+                { angle: 90, icon: Bot, label: "ARIN AI", delay: 1, href: null },
+                { angle: 180, icon: Users, label: "Users", delay: 1.5, href: null },
               ].map((item, index) => (
                 <motion.div
                   key={index}
-                  className="absolute w-20 h-20"
+                  className="absolute w-16 h-16"
                   style={{
                     top: `${50 + 40 * Math.sin((item.angle * Math.PI) / 180)}%`,
                     left: `${50 + 40 * Math.cos((item.angle * Math.PI) / 180)}%`,

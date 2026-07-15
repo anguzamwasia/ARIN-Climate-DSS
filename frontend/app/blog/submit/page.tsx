@@ -15,6 +15,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
+import dynamic from "next/dynamic"
+import "react-quill-new/dist/quill.snow.css"
+
+const ReactQuill = dynamic(() => import("react-quill-new"), { 
+  ssr: false,
+  loading: () => <div className="h-40 w-full animate-pulse bg-gray-100 rounded-lg"></div> 
+})
 
 type BlogStatus = "draft" | "pending" | "approved" | "rejected"
 type PostType = "research" | "story"
@@ -64,12 +71,13 @@ export default function BlogSubmitPage() {
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [allBlogs, setAllBlogs] = useState<Blog[]>([])
   const [imageError, setImageError] = useState<string | null>(null)
+  const [editingBlogId, setEditingBlogId] = useState<string | null>(null)
 
   useEffect(() => {
     // Fetch all blogs from Postgres
     const fetchBlogs = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/blogs`)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs`)
         if (res.ok) {
           const data = await res.json()
           // Map snake_case to camelCase and unpack formData
@@ -111,9 +119,13 @@ export default function BlogSubmitPage() {
   }, [postType, user])
 
   const userBlogs = allBlogs.filter(b => b.authorName === user?.name || b.authorName === formData.authorName)
+  const rejectedBlogs = userBlogs.filter(b => b.status === "rejected")
 
   const handleInputChange = (id: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [id]: value }))
+    setFormData((prev) => {
+      if (prev[id] === value) return prev;
+      return { ...prev, [id]: value }
+    })
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,12 +168,18 @@ export default function BlogSubmitPage() {
       impact: formData.impact,
       sources: formData.sources,
       image_url: uploadedImageBase64 || null,
-      background: formData.background
+      background: formData.background,
+      implications: formData.implications
     }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/blogs`, {
-        method: "POST",
+      const isEditing = !!editingBlogId
+      const url = isEditing 
+        ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs/${editingBlogId}`
+        : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs`
+        
+      const res = await fetch(url, {
+        method: isEditing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       })
@@ -169,7 +187,7 @@ export default function BlogSubmitPage() {
       if (res.ok) {
         // Optimistically add to list
         const newBlog: Blog = {
-          id: `temp-${Date.now()}`,
+          id: editingBlogId || `temp-${Date.now()}`,
           title: payload.title,
           authorName: payload.author_name,
           imageUrl: payload.image_url,
@@ -178,10 +196,17 @@ export default function BlogSubmitPage() {
           submittedAt: new Date().toISOString(),
           formData: formData,
         }
-        setAllBlogs([newBlog, ...allBlogs])
+        
+        if (editingBlogId) {
+          setAllBlogs(allBlogs.map(b => b.id === editingBlogId ? newBlog : b))
+        } else {
+          setAllBlogs([newBlog, ...allBlogs])
+        }
+        
         setSubmitSuccess(true)
         setFormData({ authorName: user?.name || "" })
         setUploadedImageBase64(null)
+        setEditingBlogId(null)
       }
     } catch (err) {
       console.error("Failed to submit blog", err)
@@ -195,7 +220,33 @@ export default function BlogSubmitPage() {
   const getRequiredFieldsFilled = () => {
     const currentSections = formTemplates[postType]
     const requiredFields = currentSections.filter((s) => s.required).map((s) => s.id)
-    return requiredFields.every((field) => formData[field]?.trim()) && !imageError
+    return requiredFields.every((field) => {
+      const val = formData[field]
+      return val && val.trim() !== "" && val !== "<p><br></p>"
+    }) && !imageError
+  }
+
+  const handleEditBlog = (blog: Blog) => {
+    setPostType(blog.postType)
+    setFormData({
+      title: blog.title,
+      authorName: blog.authorName,
+      ...(blog.formData || {})
+    })
+    setUploadedImageBase64(blog.imageUrl || null)
+    setEditingBlogId(blog.id)
+    setActiveTab("submit")
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'color': [] }, { 'background': [] }],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      ['link', 'clean']
+    ]
   }
 
   return (
@@ -212,10 +263,22 @@ export default function BlogSubmitPage() {
         </header>
 
         <main className="container mx-auto px-4 lg:px-8 py-10 max-w-4xl">
-          <div className="mb-8">
+          <div className="mb-6">
             <h1 className="text-3xl font-bold tracking-tight text-primary">My Climate Content</h1>
             <p className="text-muted-foreground mt-1">Submit new research or stories, and track the status of your submissions.</p>
           </div>
+
+          {rejectedBlogs.length > 0 && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
+              <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-red-800">Action Required: Revision Requested</h3>
+                <p className="text-sm text-red-700 mt-1">
+                  You have {rejectedBlogs.length} submission{rejectedBlogs.length > 1 ? 's' : ''} that require{rejectedBlogs.length === 1 ? 's' : ''} edits before approval. Please check the "My Submissions" tab to edit.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 mb-8 border-b pb-4">
             <Button onClick={() => setActiveTab("submit")} variant={activeTab === "submit" ? "default" : "secondary"}>
@@ -248,14 +311,24 @@ export default function BlogSubmitPage() {
                       <p className="text-xs text-gray-500">Choose structured data components or fluid organic narration metrics.</p>
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setPostType("research")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${postType === 'research' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-gray-100 text-gray-700'}`}>
+                      <button type="button" onClick={() => {setPostType("research"); setEditingBlogId(null); setFormData({authorName: user?.name || ""})}} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${postType === 'research' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-gray-100 text-gray-700'}`}>
                         🔬 Empirical Findings
                       </button>
-                      <button type="button" onClick={() => setPostType("story")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${postType === 'story' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-gray-100 text-gray-700'}`}>
+                      <button type="button" onClick={() => {setPostType("story"); setEditingBlogId(null); setFormData({authorName: user?.name || ""})}} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${postType === 'story' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-gray-100 text-gray-700'}`}>
                         🌱 Lived Story Telling
                       </button>
                     </div>
                   </div>
+                  
+                  {editingBlogId && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-amber-800">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="text-sm font-semibold">You are currently editing a rejected submission.</span>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => { setEditingBlogId(null); setFormData({authorName: user?.name || ""}); setUploadedImageBase64(null) }}>Cancel Edit</Button>
+                    </div>
+                  )}
 
                   <form onSubmit={handleSubmit} className="space-y-5">
                     {formTemplates[postType].map((section) => (
@@ -285,13 +358,16 @@ export default function BlogSubmitPage() {
                               placeholder={section.placeholder}
                             />
                         ) : (
-                          <textarea
-                            value={formData[section.id] || ""}
-                            onChange={(e) => handleInputChange(section.id, e.target.value)}
-                            placeholder={section.placeholder}
-                            rows={section.rows}
-                            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                          />
+                          <div className="bg-white rounded-lg">
+                            <ReactQuill
+                              theme="snow"
+                              value={formData[section.id] || ""}
+                              onChange={(content) => handleInputChange(section.id, content)}
+                              placeholder={section.placeholder}
+                              modules={quillModules}
+                              className="bg-white"
+                            />
+                          </div>
                         )}
 
                         {section.type === "file" && imageError && (
@@ -351,26 +427,32 @@ export default function BlogSubmitPage() {
                       </div>
 
                       {blog.formData && (
-                        <div className="grid grid-cols-1 gap-3 text-sm bg-gray-50/70 p-4 rounded-lg border border-gray-100">
+                        <div className="grid grid-cols-1 gap-3 text-sm bg-gray-50/70 p-4 rounded-lg border border-gray-100 overflow-hidden break-words">
                           {blog.postType === "research" ? (
                             <>
-                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Executive Summary</span><p className="text-gray-600 mt-0.5">{blog.formData.summary}</p></div>
-                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Background & Context</span><p className="text-gray-600 mt-0.5">{blog.formData.background}</p></div>
-                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Key Findings & Data Points</span><p className="text-gray-600 mt-0.5">{blog.formData.findings}</p></div>
-                              {blog.formData.implications && <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Policy Implications</span><p className="text-gray-600 mt-0.5">{blog.formData.implications}</p></div>}
-                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Sources & References</span><p className="text-gray-500 text-xs italic mt-0.5">{blog.formData.sources}</p></div>
+                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Executive Summary</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
+                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Background & Context</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.background || "" }} /></div>
+                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Key Findings & Data Points</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.findings || "" }} /></div>
+                              {blog.formData.implications && <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Policy Implications</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.implications || "" }} /></div>}
+                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Sources & References</span><div className="text-gray-500 text-xs italic mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.sources || "" }} /></div>
                             </>
                           ) : (
                             <>
-                              <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">Story Premise</span><p className="text-gray-600 mt-0.5">{blog.formData.summary}</p></div>
-                              <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">The Journey / Narrative</span><p className="text-gray-600 mt-0.5">{blog.formData.narrative}</p></div>
-                              <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">Lessons Learned & Impacts</span><p className="text-gray-600 mt-0.5">{blog.formData.impact}</p></div>
+                              <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">Story Premise</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
+                              <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">The Journey / Narrative</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.narrative || "" }} /></div>
+                              <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">Lessons Learned & Impacts</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.impact || "" }} /></div>
                             </>
                           )}
                           
                           {blog.feedback && (
-                            <div className="mt-2 p-2.5 bg-red-50 text-red-800 border border-red-100 rounded-lg text-xs">
-                              <strong>Revision Requested:</strong> {blog.feedback}
+                            <div className="mt-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
+                              <div>
+                                <strong className="block mb-1 text-red-900">Admin Feedback (Revision Requested):</strong> 
+                                <span>{blog.feedback}</span>
+                              </div>
+                              <Button size="sm" variant="destructive" onClick={() => handleEditBlog(blog)}>
+                                Edit Submission
+                              </Button>
                             </div>
                           )}
                         </div>

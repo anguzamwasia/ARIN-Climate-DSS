@@ -13,7 +13,9 @@ class BlogIn(BaseModel):
     author_name: str
     post_type: str
     summary: Optional[str] = None
+    background: Optional[str] = None
     findings: Optional[str] = None
+    implications: Optional[str] = None
     narrative: Optional[str] = None
     impact: Optional[str] = None
     sources: Optional[str] = None
@@ -41,17 +43,65 @@ def get_blog(blog_id: int, db: Session = Depends(get_db)):
 @router.post("/blogs")
 def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
     db.execute(text("""
-        INSERT INTO blogs (title, author_name, post_type, summary, findings, narrative, impact, sources, image_url, status, submitted_at)
-        VALUES (:title, :author_name, :post_type, :summary, :findings, :narrative, :impact, :sources, :image_url, 'pending', :submitted_at)
+        INSERT INTO blogs (title, author_name, post_type, summary, background, findings, implications, narrative, impact, sources, image_url, status, submitted_at)
+        VALUES (:title, :author_name, :post_type, :summary, :background, :findings, :implications, :narrative, :impact, :sources, :image_url, 'pending', :submitted_at)
     """), {**blog.dict(), "submitted_at": datetime.utcnow()})
     db.commit()
     return {"message": "Blog submitted for review"}
+
+@router.put("/blogs/{blog_id}")
+def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
+    db.execute(text("""
+        UPDATE blogs 
+        SET title = :title, 
+            author_name = :author_name, 
+            post_type = :post_type, 
+            summary = :summary, 
+            background = :background, 
+            findings = :findings, 
+            implications = :implications, 
+            narrative = :narrative, 
+            impact = :impact, 
+            sources = :sources, 
+            image_url = :image_url, 
+            status = 'pending',
+            submitted_at = :submitted_at
+        WHERE id = :id
+    """), {**blog.dict(), "submitted_at": datetime.utcnow(), "id": blog_id})
+    db.commit()
+    return {"message": "Blog updated and submitted for review"}
 
 @router.patch("/blogs/{blog_id}/approve")
 def approve_blog(blog_id: int, db: Session = Depends(get_db)):
     db.execute(text("UPDATE blogs SET status = 'approved', reviewed_at = :now WHERE id = :id"), {"now": datetime.utcnow(), "id": blog_id})
     db.commit()
-    return {"message": "Blog approved"}
+    
+    # Embed the approved blog into the AI knowledge base
+    try:
+        row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
+        if row:
+            import chromadb
+            chroma_client = chromadb.PersistentClient(path="./chroma_db")
+            collection = chroma_client.get_or_create_collection(name="climate_docs")
+            
+            # Combine blog text
+            blog_text = f"{row.get('summary', '')} {row.get('background', '')} {row.get('findings', '')} {row.get('implications', '')} {row.get('narrative', '')} {row.get('impact', '')}"
+            text_to_embed = f"Title: {row.get('title')}\nAuthor: {row.get('author_name')}\nType: User Blog\nContent: {blog_text[:3000]}"
+            
+            collection.upsert(
+                documents=[text_to_embed],
+                metadatas=[{
+                    "title": row.get('title') or "Untitled Blog",
+                    "source": "User Blog Submission",
+                    "country": "Africa (Global)", 
+                    "original_id": f"blog_{blog_id}"
+                }],
+                ids=[f"blog_{blog_id}"]
+            )
+    except Exception as e:
+        print(f"Error embedding blog: {e}")
+        
+    return {"message": "Blog approved and added to AI Knowledge Base"}
 
 @router.patch("/blogs/{blog_id}/reject")
 def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db)):

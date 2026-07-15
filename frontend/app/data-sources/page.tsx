@@ -8,8 +8,18 @@ import dynamic from "next/dynamic"
 const KenyaMap = dynamic(() => import("../components/KenyaMapClient"), { ssr: false })
 import AfricaMap from "../../components/AfricaMap"
 import MediaModal from "../../components/MediaModal"
-import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCircle } from "lucide-react"
+import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCircle, MapPin, ArrowDown } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { Suspense } from "react"
+import { AnalyticsDashboard } from "./AnalyticsDashboard"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog"
 
 interface Doc {
   id: number
@@ -35,6 +45,7 @@ const getCategory = (source: string, country?: string) => {
     return "National Reports";
   }
   if (["KNBS", "KMD"].includes(source)) return "National Reports";
+  if (source === "ARIN") return "Others";
   return source;
 }
 
@@ -43,9 +54,10 @@ const categoryIcons: Record<string, any> = {
   "National Reports": FileText,
   "Field Submissions": Users,
   "Community Insights": Mic,
+  "Others": FileText,
 }
 
-export default function DataSourcesPage() {
+function DataSourcesContent() {
   const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(true)
   const searchParams = useSearchParams()
@@ -53,6 +65,7 @@ export default function DataSourcesPage() {
   const [search, setSearch] = useState("")
   const [selectedMapCounty, setSelectedMapCounty] = useState<string | null>(null)
   const [selectedMedia, setSelectedMedia] = useState<Doc | null>(null)
+  const [isInfographicOpen, setIsInfographicOpen] = useState(false)
 
   useEffect(() => {
     fetch(`${API_URL}/documents?limit=10000`)
@@ -62,7 +75,7 @@ export default function DataSourcesPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const categories = ["National Reports", "Regional Data", "Community Insights", "Field Submissions"];
+  const categories = ["National Reports", "Regional Data", "Community Insights", "Field Submissions", "Others"];
 
   const countyCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -160,7 +173,7 @@ export default function DataSourcesPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title or country..."
+              placeholder={activeSource === "National Reports" ? "Search by title or county..." : "Search by title or country..."}
               className="w-full md:w-96 mb-6 px-4 py-2 rounded-lg border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-accent"
             />
           )}
@@ -179,7 +192,12 @@ export default function DataSourcesPage() {
                 <KenyaMap 
                   countyCounts={countyCounts} 
                   selectedCounty={selectedMapCounty} 
-                  onSelectCounty={setSelectedMapCounty} 
+                  onSelectCounty={(county) => {
+                    setSelectedMapCounty(county);
+                    if (county && countyCounts[county] > 0) {
+                      setIsInfographicOpen(true);
+                    }
+                  }} 
                 />
               </div>
             </div>
@@ -198,7 +216,12 @@ export default function DataSourcesPage() {
                 <AfricaMap 
                   countryCounts={globalCounts} 
                   selectedCountry={selectedMapCounty} 
-                  onSelectCountry={setSelectedMapCounty} 
+                  onSelectCountry={(country) => {
+                    setSelectedMapCounty(country);
+                    if (country && globalCounts[country] > 0) {
+                      setIsInfographicOpen(true);
+                    }
+                  }} 
                 />
               </div>
             </div>
@@ -243,6 +266,7 @@ export default function DataSourcesPage() {
                   <p className="text-sm text-muted-foreground">Structured surveys and observational data points automatically synchronized from KoboCollect forms.</p>
                 </div>
               </div>
+              <AnalyticsDashboard documents={docs} />
             </div>
           ) : filtered.length === 0 ? (
             <div className="bg-white border border-border rounded-xl p-12 text-center text-muted-foreground text-sm shadow-sm">
@@ -253,7 +277,7 @@ export default function DataSourcesPage() {
                 : "No documents found matching your search."}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div id="reports-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 scroll-mt-24">
               {filtered.map((doc) => (
                 <div key={doc.id} className="bg-white border border-border rounded-xl p-4 flex flex-col gap-2 hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-2">
@@ -278,13 +302,18 @@ export default function DataSourcesPage() {
                       </button>
                     ) : (
                       <>
-                        {doc.url && (
+                        {doc.url && doc.source !== "ARIN" && doc.url !== "#" && (
                           <a href={doc.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-accent hover:underline">
                             <ExternalLink className="w-3 h-3" /> View Source
                           </a>
                         )}
                         {(doc.file_url || doc.url) && (
-                          <a href={doc.file_url || doc.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-accent hover:underline">
+                          <a 
+                            href={doc.source === "ARIN" && doc.file_url ? `${API_URL}/uploads/documents/${doc.file_url}` : (doc.file_url || doc.url)} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-accent hover:underline"
+                          >
                             <FileText className="w-3 h-3" /> File
                           </a>
                         )}
@@ -304,8 +333,49 @@ export default function DataSourcesPage() {
             transcript={selectedMedia?.content_text || selectedMedia?.body || ""}
             insights={selectedMedia ? ["Discussed climate change impacts on local agriculture.", "Highlighted the need for immediate funding.", "Identified key vulnerable regions in Kenya."] : []}
           />
+
+          <Dialog open={isInfographicOpen} onOpenChange={setIsInfographicOpen}>
+            <DialogContent className="sm:max-w-md text-center">
+              <DialogHeader>
+                <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                  <MapPin className="w-6 h-6 text-primary" />
+                </div>
+                <DialogTitle className="text-2xl text-center">{selectedMapCounty}</DialogTitle>
+                <DialogDescription className="text-base pt-2 text-center">
+                  This {activeSource === "National Reports" ? "county" : "country"} currently has <strong className="text-foreground">{activeSource === "National Reports" ? (countyCounts[selectedMapCounty || ""] || 0) : (globalCounts[selectedMapCounty || ""] || 0)} reports</strong> available in the decision support system.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="sm:justify-center mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsInfographicOpen(false);
+                    setTimeout(() => {
+                      document.getElementById('reports-grid')?.scrollIntoView({ behavior: 'smooth' })
+                    }, 100)
+                  }}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-10 items-center justify-center rounded-md px-8 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  View Reports <ArrowDown className="ml-2 w-4 h-4" />
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </main>
       </div>
     </ProtectedRoute>
+  )
+}
+
+export default function DataSourcesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading data sources...</p>
+      </div>
+    }>
+      <DataSourcesContent />
+    </Suspense>
   )
 }

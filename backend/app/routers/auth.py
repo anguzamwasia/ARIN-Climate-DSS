@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from datetime import timedelta
+from datetime import timedelta, datetime
 import os
 import re
 
@@ -71,6 +71,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             headers={"WWW-Authenticate": "Bearer"},
         )
         
+    user.login_count = (user.login_count or 0) + 1
+    user.last_login = datetime.utcnow()
+    db.commit()
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
@@ -81,3 +85,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @router.get("/api/v1/auth/me")
 def get_me(current_user: User = Depends(get_current_user)):
     return {"name": current_user.name, "email": current_user.email}
+
+@router.get("/api/v1/admin/users/stats")
+def get_user_stats(db: Session = Depends(get_db)):
+    total_users = db.query(User).count()
+    active_users = db.query(User).filter(User.login_count > 0).count()
+    return {"total_users": total_users, "active_users": active_users}

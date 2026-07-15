@@ -61,9 +61,9 @@ export function AboutSection() {
               Across Africa
             </h2>
             <p className="text-muted-foreground text-lg mb-6 leading-relaxed">
-              ARIN is Africa&apos;s premier research network — connecting scholars, institutions, and policymakers to drive evidence-based solutions that shape millions of lives across the continent through eight thematic disciplines.
+              The Africa Research and Impact Network (ARIN) is a pan-African research organisation that strengthens the capacity of African researchers and policymakers to generate, share, and use evidence for sustainable development. ARIN operates a Science-Policy Fellowship Programme engaging members from African countries, with 30% drawn from government and policy institutions.
             </p>
-            <p className="text-muted-foreground leading-relaxed mb-8">
+            <p className="text-muted-foreground text-lg leading-relaxed mb-8">
               Our Climate Decision Support System (DSS) integrates climate data from multiple sources into a unified, dialogue-driven platform. It enables researchers and policymakers to query data through natural language, generate insights from field submissions, and visualize climate trends — all in one place.
             </p>
           </motion.div>

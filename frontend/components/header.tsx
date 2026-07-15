@@ -16,7 +16,7 @@ const navItems = [
     href: "/#features",
     submenu: [
       { label: "Data Sources", href: "/#data-sources", icon: Database },
-      { label: "AI Chatbot", href: "/#chatbot", icon: Bot },
+      { label: "ARIN AI Chatbot", href: "/#chatbot", icon: Bot },
       { label: "Submit Blog", href: "/#blog", icon: FileText },
     ],
   },

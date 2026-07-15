@@ -28,7 +28,7 @@ export default function PublicBlogsPage() {
   useEffect(() => {
     const fetchBlogs = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/blogs?status=approved`)
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs?status=approved`)
         if (res.ok) {
           const data = await res.json()
           const mapped = data.map((b: any) => ({
@@ -122,16 +122,23 @@ export default function PublicBlogsPage() {
                   </div>
                 </div>
                 
-                {blog.postType === "research" && blog.formData?.sources && (
-                  <div className="mx-5 mb-5 pt-4 border-t border-border/50 text-xs text-muted-foreground italic truncate">
-                    <span className="font-medium text-foreground/70 not-italic">Sources:</span> {blog.formData.sources}
-                  </div>
-                )}
-                {blog.postType === "story" && (
-                  <div className="mx-5 mb-5 pt-4 border-t border-border/50 text-xs text-amber-700/80 font-medium flex items-center gap-1.5">
-                    ✨ Read Community Narrative
-                  </div>
-                )}
+                <div className="mx-5 mb-5 mt-auto pt-4 border-t border-border/50 flex justify-between items-center">
+                  {blog.postType === "research" ? (
+                    <span className="text-[10px] text-muted-foreground italic truncate max-w-[120px]">
+                      {blog.formData?.sources ? 'Includes references' : 'Original research'}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-700/80 font-medium flex items-center gap-1 truncate max-w-[120px]">
+                      ✨ Community Voice
+                    </span>
+                  )}
+                  <span className="inline-flex items-center text-primary text-sm font-semibold group-hover:underline">
+                    Read more 
+                    <svg className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </span>
+                </div>
               </Link>
             ))
           )}
