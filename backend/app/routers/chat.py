@@ -140,6 +140,25 @@ User Question: {req.question}
                     
         answer_content = response.choices[0].message.content
         
+        # Auto-Learn / Dynamic Retraining Memory:
+        # Embed user question & AI synthesized insight into ChromaDB so the chatbot continuously learns from past interactions
+        if answer_content and len(answer_content) > 50 and "I don't have" not in answer_content:
+            try:
+                import uuid
+                qa_id = f"qa_{uuid.uuid4().hex[:8]}"
+                qa_text = f"Prior Inquiry: {req.question}\nSynthesized Knowledge & Insight: {answer_content[:2000]}"
+                collection.upsert(
+                    documents=[qa_text],
+                    metadatas=[{
+                        "title": f"Learned Insight: {req.question[:50]}",
+                        "source": "ARIN AI Memory",
+                        "country": "Africa (Global)"
+                    }],
+                    ids=[qa_id]
+                )
+            except Exception as learn_err:
+                print(f"Auto-learning embedding error: {learn_err}")
+        
         # Filter sources to only include those actually cited in the LLM's answer
         used_sources = []
         for s in source_titles:
