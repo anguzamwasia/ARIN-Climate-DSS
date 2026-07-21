@@ -46,7 +46,7 @@ services:
       dockerfile: Dockerfile
     container_name: arin_frontend
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: http://204.48.20.139:8000
     ports:
       - "3000:3000"
     depends_on:
