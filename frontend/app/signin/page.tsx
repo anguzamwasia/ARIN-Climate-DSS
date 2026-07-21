@@ -11,7 +11,7 @@ import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-export default function SignInPage() {
+function SignInForm() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -203,5 +203,19 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+import { Suspense } from "react"
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
   )
 }
