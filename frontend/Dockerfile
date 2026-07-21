@@ -10,6 +10,8 @@ RUN pnpm install --no-frozen-lockfile
 COPY . .
 
 ENV NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
 
 RUN pnpm build
 
