@@ -28,7 +28,7 @@ const iconMap: Record<string, typeof Globe> = {
 }
 
 // Base URL configuration pulling from environment variables
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://204.48.20.139:8000"
 const fetcher = (url: string) => fetch(`${BACKEND_URL}${url}`).then(res => res.json())
 
 function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
