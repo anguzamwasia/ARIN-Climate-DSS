@@ -49,6 +49,7 @@ export default function UnifiedAdminPortal() {
   const [rejectionReason, setRejectionReason] = useState("")
   const [blogActionMessage, setBlogActionMessage] = useState("")
   const [showModal, setShowModal] = useState(false)
+  const [rejectionError, setRejectionError] = useState<string | null>(null)
   const [isProcessingBlog, setIsProcessingBlog] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [blogToEdit, setBlogToEdit] = useState<Blog | null>(null)
@@ -155,6 +156,7 @@ export default function UnifiedAdminPortal() {
   const handleRejectSubmit = async () => {
     if (!selectedBlog || !rejectionReason.trim()) return
     setIsProcessingBlog(true)
+    setRejectionError(null)
     try {
       const res = await fetch(`${API_URL}/blogs/${selectedBlog.id}/reject`, {
         method: "PATCH",
@@ -168,8 +170,14 @@ export default function UnifiedAdminPortal() {
         setSelectedBlog(null)
         setBlogActionMessage("❌ Submission rejected and revision feedback sent!")
         setTimeout(() => setBlogActionMessage(""), 3000)
+      } else {
+        const errorData = await res.json()
+        setRejectionError(errorData.detail || "Failed to submit rejection. Please try again.")
       }
-    } catch (err) {}
+    } catch (err) {
+      console.error(err)
+      setRejectionError("Failed to connect to backend server.")
+    }
     setIsProcessingBlog(false)
   }
 
@@ -474,7 +482,7 @@ export default function UnifiedAdminPortal() {
                           {blog.status === "pending" ? (
                             <div className="flex gap-2 w-full sm:w-auto justify-end">
                               <button disabled={isProcessingBlog} onClick={() => { setBlogToEdit(blog); setEditFormData({ title: blog.title, ...(blog.formData || {}) }); setShowEditModal(true); }} className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-sm bg-blue-50 font-medium hover:bg-blue-100 transition-colors flex items-center gap-1"><Edit className="w-3.5 h-3.5" /> Edit</button>
-                              <button disabled={isProcessingBlog} onClick={() => { setSelectedBlog(blog); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors">Reject</button>
+                              <button disabled={isProcessingBlog} onClick={() => { setSelectedBlog(blog); setRejectionError(null); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors">Reject</button>
                               <button disabled={isProcessingBlog} onClick={() => handleApprove(blog.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors">Approve</button>
                             </div>
                           ) : blog.status === "approved" ? (
@@ -750,10 +758,24 @@ export default function UnifiedAdminPortal() {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-md w-full overflow-hidden p-6 shadow-xl border animate-in fade-in zoom-in-95 duration-100">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Reason for Rejection</h2>
+            
+            {rejectionError && (
+              <div className="bg-red-50 text-red-700 p-3 rounded-lg text-xs mb-3 border border-red-200 font-medium">
+                ⚠️ {rejectionError}
+              </div>
+            )}
+
             <textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} placeholder="Provide action targets..." className="w-full h-28 border p-2 text-sm rounded bg-gray-50 outline-none focus:ring-1 focus:ring-red-500 resize-none mb-4" />
             <div className="flex justify-end gap-2">
-              <button onClick={() => { setShowModal(false); setRejectionReason(""); }} className="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-              <button onClick={handleRejectSubmit} disabled={!rejectionReason.trim()} className="px-4 py-2 bg-red-600 text-white rounded text-sm font-medium disabled:opacity-50">Confirm Rejection</button>
+              <button onClick={() => { setShowModal(false); setRejectionReason(""); setRejectionError(null); }} className="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-50 font-medium">Cancel</button>
+              <button 
+                onClick={handleRejectSubmit} 
+                disabled={!rejectionReason.trim() || isProcessingBlog} 
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isProcessingBlog && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {isProcessingBlog ? "Processing..." : "Confirm Rejection"}
+              </button>
             </div>
           </div>
         </div>

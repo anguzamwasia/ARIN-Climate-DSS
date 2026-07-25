@@ -24,6 +24,8 @@ import os
 from app.routers import health, documents, chat, blogs, transcription, contact, auth, notifications
 from app.database import engine
 from app.models.user import Base
+from app.models.blog import Blog
+from app.models.notification import Notification
 
 from sqlalchemy import text
 Base.metadata.create_all(bind=engine)
@@ -31,6 +33,20 @@ Base.metadata.create_all(bind=engine)
 # Auto-migration hook for schema column updates
 try:
     with engine.begin() as conn:
+        # Create notifications table if it doesn't exist
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS notifications (
+                id SERIAL PRIMARY KEY,
+                user_email VARCHAR(255),
+                title VARCHAR(255),
+                message TEXT,
+                is_read BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_id ON notifications (id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_notifications_user_email ON notifications (user_email)"))
+
         res = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='blogs'"))
         columns = [r[0] for r in res.fetchall()]
         if 'author_email' not in columns:
