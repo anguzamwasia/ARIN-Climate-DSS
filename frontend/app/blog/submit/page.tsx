@@ -218,8 +218,6 @@ export default function BlogSubmitPage() {
     }
 
     setIsSubmitting(false)
-
-    setTimeout(() => setSubmitSuccess(false), 4000)
   }
 
   const getRequiredFieldsFilled = () => {
