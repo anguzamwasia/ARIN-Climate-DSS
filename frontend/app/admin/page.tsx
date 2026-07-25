@@ -43,6 +43,8 @@ export default function UnifiedAdminPortal() {
 
   // --- BLOG STATE MANAGEMENT ---
   const [allBlogs, setAllBlogs] = useState<Blog[]>([])
+  const [showComparison, setShowComparison] = useState<Record<string, boolean>>({})
+  const [blogSubTab, setBlogSubTab] = useState<"pending" | "approved" | "rejected">("pending")
   const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
   const [blogActionMessage, setBlogActionMessage] = useState("")
@@ -133,6 +135,7 @@ export default function UnifiedAdminPortal() {
   // Filter lists dynamically
   const pendingBlogs = allBlogs.filter((b) => b.status === "pending")
   const approvedBlogs = allBlogs.filter((b) => b.status === "approved")
+  const rejectedBlogs = allBlogs.filter((b) => b.status === "rejected")
 
   // --- ACTIONS: BLOG QUEUE ---
   const handleApprove = async (id: string) => {
@@ -341,12 +344,15 @@ export default function UnifiedAdminPortal() {
           >
             <LayoutDashboard className="w-4 h-4" />
             <span>Blog Submissions</span>
-            <span className="ml-auto flex items-center gap-1">
+            <span className="ml-auto flex items-center gap-1.5">
+              {pendingBlogs.length > 0 && (
+                <span className="bg-emerald-600 text-white font-bold text-xs px-2 py-0.5 rounded-full" title="Pending">{pendingBlogs.length}</span>
+              )}
               {approvedBlogs.length > 0 && (
                 <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2 py-0.5 rounded-full" title="Approved">{approvedBlogs.length}</span>
               )}
-              {pendingBlogs.length > 0 && (
-                <span className="bg-emerald-600 text-white font-bold text-xs px-2 py-0.5 rounded-full" title="Pending">{pendingBlogs.length}</span>
+              {rejectedBlogs.length > 0 && (
+                <span className="bg-red-100 text-red-800 font-bold text-xs px-2 py-0.5 rounded-full" title="Rejected / Needs Revision">{rejectedBlogs.length}</span>
               )}
             </span>
           </button>
@@ -413,13 +419,35 @@ export default function UnifiedAdminPortal() {
                   )}
                 </div>
 
-                {pendingBlogs.length === 0 ? (
+                {/* Sub-Tabs for status filtering */}
+                <div className="flex flex-wrap gap-2 mb-6 border-b pb-3">
+                  <button 
+                    onClick={() => setBlogSubTab("pending")}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${blogSubTab === "pending" ? "bg-emerald-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                  >
+                    Pending Review ({pendingBlogs.length})
+                  </button>
+                  <button 
+                    onClick={() => setBlogSubTab("approved")}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${blogSubTab === "approved" ? "bg-blue-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                  >
+                    Approved & Live ({approvedBlogs.length})
+                  </button>
+                  <button 
+                    onClick={() => setBlogSubTab("rejected")}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${blogSubTab === "rejected" ? "bg-red-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                  >
+                    Rejected / Revisions ({rejectedBlogs.length})
+                  </button>
+                </div>
+
+                {(blogSubTab === "pending" ? pendingBlogs : blogSubTab === "approved" ? approvedBlogs : rejectedBlogs).length === 0 ? (
                   <div className="bg-white border rounded-xl p-12 text-center text-gray-400 text-sm">
-                    No entries pending review cycles at this moment.
+                    No entries in this status queue at this moment.
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {pendingBlogs.map((blog) => (
+                    {(blogSubTab === "pending" ? pendingBlogs : blogSubTab === "approved" ? approvedBlogs : rejectedBlogs).map((blog) => (
                       <div key={blog.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b pb-4 mb-4">
                           <div className="flex gap-4 items-start">
@@ -437,31 +465,84 @@ export default function UnifiedAdminPortal() {
                             </div>
                           </div>
                           
-                          <div className="flex gap-2 w-full sm:w-auto justify-end">
-                            <button disabled={isProcessingBlog} onClick={() => { setBlogToEdit(blog); setEditFormData({ title: blog.title, ...(blog.formData || {}) }); setShowEditModal(true); }} className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-sm bg-blue-50 font-medium hover:bg-blue-100 transition-colors flex items-center gap-1"><Edit className="w-3.5 h-3.5" /> Edit</button>
-                            <button disabled={isProcessingBlog} onClick={() => { setSelectedBlog(blog); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors">Reject</button>
-                            <button disabled={isProcessingBlog} onClick={() => handleApprove(blog.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors">Approve</button>
-                          </div>
+                          {blog.status === "pending" ? (
+                            <div className="flex gap-2 w-full sm:w-auto justify-end">
+                              <button disabled={isProcessingBlog} onClick={() => { setBlogToEdit(blog); setEditFormData({ title: blog.title, ...(blog.formData || {}) }); setShowEditModal(true); }} className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-sm bg-blue-50 font-medium hover:bg-blue-100 transition-colors flex items-center gap-1"><Edit className="w-3.5 h-3.5" /> Edit</button>
+                              <button disabled={isProcessingBlog} onClick={() => { setSelectedBlog(blog); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors">Reject</button>
+                              <button disabled={isProcessingBlog} onClick={() => handleApprove(blog.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors">Approve</button>
+                            </div>
+                          ) : blog.status === "approved" ? (
+                            <span className="text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 font-semibold">Approved & Live</span>
+                          ) : (
+                            <div className="text-xs text-red-700 bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 max-w-xs">
+                              <strong>Rejection Feedback:</strong> {blog.feedback}
+                            </div>
+                          )}
                         </div>
 
-                        {blog.formData && (
-                          <div className="space-y-3 text-sm bg-gray-50 p-4 rounded-lg border overflow-hidden break-words">
-                            {blog.postType === "research" ? (
-                              <>
-                                <div><span className="font-semibold text-gray-700">Executive Summary:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
-                                <div><span className="font-semibold text-gray-700">Key Findings:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.findings || "" }} /></div>
-                                <div><span className="font-semibold text-gray-700">Policy Implications:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.implications || "" }} /></div>
-                                <div><span className="font-semibold text-gray-700">References:</span><div className="text-gray-500 text-xs italic mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.sources || "" }} /></div>
-                              </>
-                            ) : (
-                              <>
-                                <div><span className="font-semibold text-amber-900">Story Premise:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
-                                <div><span className="font-semibold text-amber-900">Lived Narrative:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.narrative || "" }} /></div>
-                                <div><span className="font-semibold text-amber-900">Impact Indicators:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.impact || "" }} /></div>
-                              </>
-                            )}
-                          </div>
-                        )}
+                        {blog.formData && (() => {
+                          let parsedPrev = null;
+                          if (blog.previousVersion) {
+                            try {
+                              parsedPrev = JSON.parse(blog.previousVersion);
+                            } catch (e) {}
+                          }
+
+                          return (
+                            <div className="space-y-3 text-sm bg-gray-50 p-4 rounded-lg border overflow-hidden break-words">
+                              {blog.previousVersion && parsedPrev && (
+                                <div className="mb-2 border-b pb-2">
+                                  <button 
+                                    type="button"
+                                    onClick={() => setShowComparison(p => ({ ...p, [blog.id]: !p[blog.id] }))}
+                                    className="text-xs font-bold text-amber-700 hover:text-amber-800 underline flex items-center gap-1"
+                                  >
+                                    {showComparison[blog.id] ? "Hide Original vs Corrected Version" : "👁️ Compare Original vs Corrected (Verify Corrections)"}
+                                  </button>
+                                </div>
+                              )}
+
+                              {showComparison[blog.id] && parsedPrev ? (
+                                <div className="space-y-4 bg-amber-50/50 p-3 rounded-lg border border-amber-100">
+                                  <h4 className="font-bold text-xs uppercase text-amber-900 tracking-wide mb-2">Original vs Corrected Comparison (Left: Old / Right: New)</h4>
+                                  {Object.keys(parsedPrev).map((field) => {
+                                    const prevVal = parsedPrev[field] || "";
+                                    const currVal = blog.formData?.[field] || "";
+                                    if (prevVal === currVal) return null;
+
+                                    return (
+                                      <div key={field} className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-amber-200/50 pt-2 mt-2">
+                                        <div>
+                                          <span className="text-[10px] font-bold text-red-700 uppercase tracking-wider block">Original {field}:</span>
+                                          <div className="text-gray-500 text-xs mt-0.5 prose prose-sm max-w-none line-through" dangerouslySetInnerHTML={{ __html: prevVal }} />
+                                        </div>
+                                        <div>
+                                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Corrected {field}:</span>
+                                          <div className="text-gray-900 text-xs mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: currVal }} />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                blog.postType === "research" ? (
+                                  <>
+                                    <div><span className="font-semibold text-gray-700">Executive Summary:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
+                                    <div><span className="font-semibold text-gray-700">Key Findings:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.findings || "" }} /></div>
+                                    <div><span className="font-semibold text-gray-700">Policy Implications:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.implications || "" }} /></div>
+                                    <div><span className="font-semibold text-gray-700">References:</span><div className="text-gray-500 text-xs italic mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.sources || "" }} /></div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div><span className="font-semibold text-amber-900">Story Premise:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
+                                    <div><span className="font-semibold text-amber-900">Lived Narrative:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.narrative || "" }} /></div>
+                                    <div><span className="font-semibold text-amber-900">Impact Indicators:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.impact || "" }} /></div>
+                                  </>
+                                )
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>

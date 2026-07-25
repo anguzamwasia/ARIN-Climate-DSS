@@ -82,9 +82,11 @@ export default function BlogSubmitPage() {
           const data = await res.json()
           // Map snake_case to camelCase and unpack formData
           const mapped = data.map((b: any) => ({
-            id: b.id,
+            id: b.id.toString(),
             title: b.title,
             authorName: b.author_name,
+            authorEmail: b.author_email,
+            previousVersion: b.previous_version,
             postType: b.post_type,
             status: b.status,
             submittedAt: b.submitted_at,
@@ -96,7 +98,8 @@ export default function BlogSubmitPage() {
               narrative: b.narrative,
               impact: b.impact,
               sources: b.sources,
-              background: b.background
+              background: b.background,
+              implications: b.implications
             }
           }))
           setAllBlogs(mapped)
@@ -118,7 +121,7 @@ export default function BlogSubmitPage() {
     setImageError(null)
   }, [postType, user])
 
-  const userBlogs = allBlogs.filter(b => b.authorName === user?.name || b.authorName === formData.authorName)
+  const userBlogs = allBlogs.filter(b => b.authorEmail === user?.email)
   const rejectedBlogs = userBlogs.filter(b => b.status === "rejected")
 
   const handleInputChange = (id: string, value: string) => {
@@ -161,6 +164,7 @@ export default function BlogSubmitPage() {
     const payload = {
       title: formData.title || "Untitled Document",
       author_name: formData.authorName || user?.name || "Anonymous Contributor",
+      author_email: user?.email || null,
       post_type: postType,
       summary: formData.summary,
       findings: formData.findings,
@@ -190,6 +194,7 @@ export default function BlogSubmitPage() {
           id: editingBlogId || `temp-${Date.now()}`,
           title: payload.title,
           authorName: payload.author_name,
+          authorEmail: payload.author_email || undefined,
           imageUrl: payload.image_url,
           postType: postType,
           status: "pending",

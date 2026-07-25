@@ -21,11 +21,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.routers import health, documents, chat, blogs, transcription, contact, auth
+from app.routers import health, documents, chat, blogs, transcription, contact, auth, notifications
 from app.database import engine
 from app.models.user import Base
 
+from sqlalchemy import text
 Base.metadata.create_all(bind=engine)
+
+# Auto-migration hook for schema column updates
+try:
+    with engine.begin() as conn:
+        res = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='blogs'"))
+        columns = [r[0] for r in res.fetchall()]
+        if 'author_email' not in columns:
+            conn.execute(text("ALTER TABLE blogs ADD COLUMN author_email VARCHAR(255)"))
+            print("Migration: Added author_email to blogs table.")
+        if 'previous_version' not in columns:
+            conn.execute(text("ALTER TABLE blogs ADD COLUMN previous_version TEXT"))
+            print("Migration: Added previous_version to blogs table.")
+except Exception as e:
+    print(f"Auto-schema upgrade warning: {e}")
 
 app = FastAPI(
     title="ARIN Climate DSS API",
@@ -52,3 +67,4 @@ app.include_router(blogs.router, tags=["Blogs"])
 app.include_router(transcription.router, tags=["Transcription"])
 app.include_router(contact.router, tags=["Contact"])
 app.include_router(auth.router, tags=["Auth"])
+app.include_router(notifications.router, tags=["Notifications"])

@@ -18,5 +18,7 @@ class Blog(Base):
     image_url = Column(String, nullable=True)
     status = Column(String, default="pending")
     feedback = Column(Text, nullable=True)
+    author_email = Column(String, nullable=True)
+    previous_version = Column(Text, nullable=True)
     submitted_at = Column(DateTime)
     reviewed_at = Column(DateTime, nullable=True)
