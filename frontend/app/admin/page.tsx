@@ -98,7 +98,8 @@ export default function UnifiedAdminPortal() {
             narrative: b.narrative,
             impact: b.impact,
             sources: b.sources,
-            background: b.background
+            background: b.background,
+            implications: b.implications
           }
         }))
         setAllBlogs(mapped)
@@ -165,6 +166,8 @@ export default function UnifiedAdminPortal() {
         setShowModal(false)
         setRejectionReason("")
         setSelectedBlog(null)
+        setBlogActionMessage("❌ Submission rejected and revision feedback sent!")
+        setTimeout(() => setBlogActionMessage(""), 3000)
       }
     } catch (err) {}
     setIsProcessingBlog(false)
@@ -185,7 +188,8 @@ export default function UnifiedAdminPortal() {
         sources: editFormData.sources || blogToEdit.formData?.sources,
         image_url: blogToEdit.imageUrl,
         background: editFormData.background || blogToEdit.formData?.background,
-        implications: editFormData.implications || blogToEdit.formData?.implications
+        implications: editFormData.implications || blogToEdit.formData?.implications,
+        edited_by_admin: true
       }
 
       const res = await fetch(`${API_URL}/blogs/${blogToEdit.id}`, { 
@@ -196,6 +200,8 @@ export default function UnifiedAdminPortal() {
       
       if (res.ok) {
         await fetchBlogs()
+        setBlogActionMessage("✍️ Changes saved and contributor notified of updates!")
+        setTimeout(() => setBlogActionMessage(""), 3000)
       }
     } catch (err) {}
     setIsProcessingBlog(false)

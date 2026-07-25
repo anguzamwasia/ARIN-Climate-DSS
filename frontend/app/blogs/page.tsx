@@ -21,6 +21,11 @@ interface Blog {
   formData?: Record<string, string>
 }
 
+function stripHtml(html?: string) {
+  if (!html) return ""
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+}
+
 export default function PublicBlogsPage() {
   const [blogs, setBlogs] = useState<Blog[]>([])
   const [search, setSearch] = useState("")
@@ -45,7 +50,8 @@ export default function PublicBlogsPage() {
               narrative: b.narrative,
               impact: b.impact,
               sources: b.sources,
-              background: b.background
+              background: b.background,
+              implications: b.implications
             }
           }))
           setBlogs(mapped)
@@ -58,7 +64,7 @@ export default function PublicBlogsPage() {
   const filteredBlogs = blogs.filter(b => 
     b.title.toLowerCase().includes(search.toLowerCase()) || 
     b.authorName.toLowerCase().includes(search.toLowerCase()) ||
-    b.formData?.summary?.toLowerCase().includes(search.toLowerCase())
+    stripHtml(b.formData?.summary).toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -118,7 +124,7 @@ export default function PublicBlogsPage() {
                       <span>{new Date(blog.submittedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     </div>
                     <h3 className="font-bold text-lg text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors">{blog.title}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">{blog.formData?.summary}</p>
+                    <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">{stripHtml(blog.formData?.summary)}</p>
                   </div>
                 </div>
                 

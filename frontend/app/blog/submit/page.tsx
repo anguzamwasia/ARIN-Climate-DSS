@@ -72,6 +72,8 @@ export default function BlogSubmitPage() {
   const [allBlogs, setAllBlogs] = useState<Blog[]>([])
   const [imageError, setImageError] = useState<string | null>(null)
   const [editingBlogId, setEditingBlogId] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [showComparison, setShowComparison] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     // Fetch all blogs from Postgres
@@ -157,6 +159,7 @@ export default function BlogSubmitPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (imageError) return
+    setSubmitError(null)
     setIsSubmitting(true)
 
     await new Promise((resolve) => setTimeout(resolve, 1200))
@@ -212,9 +215,13 @@ export default function BlogSubmitPage() {
         setFormData({ authorName: user?.name || "" })
         setUploadedImageBase64(null)
         setEditingBlogId(null)
+      } else {
+        const errorData = await res.json()
+        setSubmitError(errorData.detail || "Failed to submit blog. Please check your inputs.")
       }
     } catch (err) {
       console.error("Failed to submit blog", err)
+      setSubmitError("Failed to connect to backend server.")
     }
 
     setIsSubmitting(false)
@@ -333,6 +340,16 @@ export default function BlogSubmitPage() {
                     </div>
                   )}
 
+                  {submitError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
+                      <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h3 className="font-semibold text-red-800">Submission Error</h3>
+                        <p className="text-sm text-red-700 mt-1">{submitError}</p>
+                      </div>
+                    </div>
+                  )}
+
                   <form onSubmit={handleSubmit} className="space-y-5">
                     {formTemplates[postType].map((section) => (
                       <div key={section.id} className="space-y-1.5">
@@ -429,37 +446,82 @@ export default function BlogSubmitPage() {
                         </span>
                       </div>
 
-                      {blog.formData && (
-                        <div className="grid grid-cols-1 gap-3 text-sm bg-gray-50/70 p-4 rounded-lg border border-gray-100 overflow-hidden break-words">
-                          {blog.postType === "research" ? (
-                            <>
-                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Executive Summary</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
-                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Background & Context</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.background || "" }} /></div>
-                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Key Findings & Data Points</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.findings || "" }} /></div>
-                              {blog.formData.implications && <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Policy Implications</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.implications || "" }} /></div>}
-                              <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Sources & References</span><div className="text-gray-500 text-xs italic mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.sources || "" }} /></div>
-                            </>
-                          ) : (
-                            <>
-                              <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">Story Premise</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
-                              <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">The Journey / Narrative</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.narrative || "" }} /></div>
-                              <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">Lessons Learned & Impacts</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.impact || "" }} /></div>
-                            </>
-                          )}
-                          
-                          {blog.feedback && (
-                            <div className="mt-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
-                              <div>
-                                <strong className="block mb-1 text-red-900">Admin Feedback (Revision Requested):</strong> 
-                                <span>{blog.feedback}</span>
+                      {blog.formData && (() => {
+                        let parsedPrev = null;
+                        if (blog.previousVersion) {
+                          try {
+                            parsedPrev = JSON.parse(blog.previousVersion);
+                          } catch (e) {}
+                        }
+
+                        return (
+                          <div className="grid grid-cols-1 gap-3 text-sm bg-gray-50/70 p-4 rounded-lg border border-gray-100 overflow-hidden break-words">
+                            {blog.previousVersion && parsedPrev && (
+                              <div className="mb-2 border-b pb-2">
+                                <button 
+                                  type="button"
+                                  onClick={() => setShowComparison(p => ({ ...p, [blog.id]: !p[blog.id] }))}
+                                  className="text-xs font-bold text-amber-700 hover:text-amber-800 underline flex items-center gap-1"
+                                >
+                                  {showComparison[blog.id] ? "Hide Original vs Approved Version" : "👁️ Compare My Original vs Published Version (Learn Admin Improvements)"}
+                                </button>
                               </div>
-                              <Button size="sm" variant="destructive" onClick={() => handleEditBlog(blog)}>
-                                Edit Submission
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                            )}
+
+                            {showComparison[blog.id] && parsedPrev ? (
+                              <div className="space-y-4 bg-amber-50/50 p-3 rounded-lg border border-amber-100 mb-2 text-xs">
+                                <h4 className="font-bold text-xs uppercase text-amber-900 tracking-wide mb-2">Original vs Admin-Corrected Comparison (Left: Your Draft / Right: Published)</h4>
+                                {Object.keys(parsedPrev).map((field) => {
+                                  const prevVal = parsedPrev[field] || "";
+                                  const currVal = blog.formData?.[field] || "";
+                                  if (prevVal === currVal) return null;
+
+                                  return (
+                                    <div key={field} className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-amber-200/50 pt-2 mt-2">
+                                      <div>
+                                        <span className="text-[10px] font-bold text-red-700 uppercase tracking-wider block">Your Original {field}:</span>
+                                        <div className="text-gray-500 text-xs mt-0.5 prose prose-sm max-w-none line-through" dangerouslySetInnerHTML={{ __html: prevVal }} />
+                                      </div>
+                                      <div>
+                                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Admin Published {field}:</span>
+                                        <div className="text-gray-950 text-xs mt-0.5 prose prose-sm max-w-none bg-emerald-50/50 p-1.5 rounded border border-emerald-100" dangerouslySetInnerHTML={{ __html: currVal }} />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
+
+                            {blog.postType === "research" ? (
+                              <>
+                                <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Executive Summary</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
+                                <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Background & Context</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.background || "" }} /></div>
+                                <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Key Findings & Data Points</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.findings || "" }} /></div>
+                                {blog.formData.implications && <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Policy Implications</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.implications || "" }} /></div>}
+                                <div><span className="font-semibold text-gray-700 block text-xs uppercase tracking-wide">Sources & References</span><div className="text-gray-500 text-xs italic mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.sources || "" }} /></div>
+                              </>
+                            ) : (
+                              <>
+                                <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">Story Premise</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
+                                <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">The Journey / Narrative</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.narrative || "" }} /></div>
+                                <div><span className="font-semibold text-amber-900 block text-xs uppercase tracking-wide">Lessons Learned & Impacts</span><div className="text-gray-600 mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.impact || "" }} /></div>
+                              </>
+                            )}
+                            
+                            {blog.feedback && (
+                              <div className="mt-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
+                                <div>
+                                  <strong className="block mb-1 text-red-900">Admin Feedback (Revision Requested):</strong> 
+                                  <span>{blog.feedback}</span>
+                                </div>
+                                <Button size="sm" variant="destructive" onClick={() => handleEditBlog(blog)}>
+                                  Edit Submission
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )
                 })

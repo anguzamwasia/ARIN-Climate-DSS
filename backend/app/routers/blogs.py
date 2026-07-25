@@ -21,6 +21,7 @@ class BlogIn(BaseModel):
     impact: Optional[str] = None
     sources: Optional[str] = None
     image_url: Optional[str] = None
+    edited_by_admin: Optional[bool] = None
 
 class BlogAction(BaseModel):
     feedback: Optional[str] = None
@@ -50,10 +51,16 @@ def get_blog(blog_id: int, db: Session = Depends(get_db)):
 
 @router.post("/blogs")
 def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
+    # Duplication check
+    existing = db.execute(text("SELECT id FROM blogs WHERE title = :title"), {"title": blog.title}).mappings().first()
+    if existing:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="A blog submission with this title already exists.")
+
     db.execute(text("""
-        INSERT INTO blogs (title, author_name, post_type, summary, background, findings, implications, narrative, impact, sources, image_url, status, submitted_at, author_email)
-        VALUES (:title, :author_name, :post_type, :summary, :background, :findings, :implications, :narrative, :impact, :sources, :image_url, 'pending', :submitted_at, :author_email)
-    """), {**blog.dict(), "submitted_at": datetime.utcnow()})
+        INSERT INTO blogs (title, author_name, post_type, summary, background, findings, implications, narrative, impact, sources, image_url, status, submitted_at, author_email, edited_by_admin)
+        VALUES (:title, :author_name, :post_type, :summary, :background, :findings, :implications, :narrative, :impact, :sources, :image_url, 'pending', :submitted_at, :author_email, FALSE)
+    """), {**blog.dict(exclude={'edited_by_admin'}), "submitted_at": datetime.utcnow()})
     db.commit()
 
     if blog.author_email:
@@ -77,6 +84,37 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
 
 @router.put("/blogs/{blog_id}")
 def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
+    # Duplication check
+    existing = db.execute(text("SELECT id FROM blogs WHERE title = :title AND id != :id"), {"title": blog.title, "id": blog_id}).mappings().first()
+    if existing:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="A blog submission with this title already exists.")
+
+    row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
+    if not row:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Blog not found")
+
+    prev_version_str = row.get('previous_version')
+    edited_flag = row.get('edited_by_admin') or False
+
+    # If the admin is saving changes, we store the original fields in previous_version
+    # so the contributor can see the differences (comparison diff view)
+    if blog.edited_by_admin:
+        import json
+        blog_data = {
+            "title": row.get('title'),
+            "summary": row.get('summary'),
+            "background": row.get('background'),
+            "findings": row.get('findings'),
+            "implications": row.get('implications'),
+            "narrative": row.get('narrative'),
+            "impact": row.get('impact'),
+            "sources": row.get('sources')
+        }
+        prev_version_str = json.dumps(blog_data)
+        edited_flag = True
+
     db.execute(text("""
         UPDATE blogs 
         SET title = :title, 
@@ -92,9 +130,17 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
             image_url = :image_url, 
             status = 'pending',
             submitted_at = :submitted_at,
-            author_email = :author_email
+            author_email = :author_email,
+            previous_version = :prev_version,
+            edited_by_admin = :edited_by_admin
         WHERE id = :id
-    """), {**blog.dict(), "submitted_at": datetime.utcnow(), "id": blog_id})
+    """), {
+        **blog.dict(exclude={'edited_by_admin'}),
+        "submitted_at": datetime.utcnow(),
+        "id": blog_id,
+        "prev_version": prev_version_str,
+        "edited_by_admin": edited_flag
+    })
     db.commit()
 
     if blog.author_email:
@@ -118,46 +164,63 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
 
 @router.patch("/blogs/{blog_id}/approve")
 def approve_blog(blog_id: int, db: Session = Depends(get_db)):
+    row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
+    if not row:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Blog not found")
+
+    is_edited = row.get('edited_by_admin') or False
+    
     db.execute(text("UPDATE blogs SET status = 'approved', reviewed_at = :now WHERE id = :id"), {"now": datetime.utcnow(), "id": blog_id})
     db.commit()
     
-    row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
-    if row and row.get('author_email'):
-        send_simulated_email(
-            to_email=row['author_email'],
-            subject="Climate Submission Approved",
-            body=f"Hello {row['author_name']},\n\nCongratulations! Your submission '{row['title']}' has been approved and is now live on the ARIN Climate DSS platform."
-        )
+    if row.get('author_email'):
+        if is_edited:
+            subject = "Climate Submission Approved with Edits"
+            body = (
+                f"Hello {row['author_name']},\n\n"
+                f"Your submission '{row['title']}' has been approved and published with minor edits by the administrator.\n\n"
+                f"Please log in to your dashboard to compare your original version with the published version so you can learn from the adjustments."
+            )
+            notif_title = "Approved with Edits ✍️"
+            notif_msg = f"Your work '{row['title']}' has been approved with minor admin edits. Click to view comparison!"
+        else:
+            subject = "Climate Submission Approved"
+            body = f"Hello {row['author_name']},\n\nCongratulations! Your submission '{row['title']}' has been approved and is now live on the ARIN Climate DSS platform."
+            notif_title = "Submission Approved 🎉"
+            notif_msg = f"Your work '{row['title']}' has been approved and is now live!"
+            
+        send_simulated_email(to_email=row['author_email'], subject=subject, body=body)
+        
         db.execute(text("""
             INSERT INTO notifications (user_email, title, message, is_read, created_at)
             VALUES (:email, :title, :message, FALSE, :now)
         """), {
             "email": row['author_email'],
-            "title": "Submission Approved 🎉",
-            "message": f"Your work '{row['title']}' has been approved and is now live!",
+            "title": notif_title,
+            "message": notif_msg,
             "now": datetime.utcnow()
         })
         db.commit()
 
     try:
-        if row:
-            import chromadb
-            chroma_client = chromadb.PersistentClient(path="./chroma_db")
-            collection = chroma_client.get_or_create_collection(name="climate_docs")
-            
-            blog_text = f"{row.get('summary', '')} {row.get('background', '')} {row.get('findings', '')} {row.get('implications', '')} {row.get('narrative', '')} {row.get('impact', '')}"
-            text_to_embed = f"Title: {row.get('title')}\nAuthor: {row.get('author_name')}\nType: User Blog\nContent: {blog_text[:3000]}"
-            
-            collection.upsert(
-                documents=[text_to_embed],
-                metadatas=[{
-                    "title": row.get('title') or "Untitled Blog",
-                    "source": "User Blog Submission",
-                    "country": "Africa (Global)", 
-                    "original_id": f"blog_{blog_id}"
-                }],
-                ids=[f"blog_{blog_id}"]
-            )
+        import chromadb
+        chroma_client = chromadb.PersistentClient(path="./chroma_db")
+        collection = chroma_client.get_or_create_collection(name="climate_docs")
+        
+        blog_text = f"{row.get('summary', '')} {row.get('background', '')} {row.get('findings', '')} {row.get('implications', '')} {row.get('narrative', '')} {row.get('impact', '')}"
+        text_to_embed = f"Title: {row.get('title')}\nAuthor: {row.get('author_name')}\nType: User Blog\nContent: {blog_text[:3000]}"
+        
+        collection.upsert(
+            documents=[text_to_embed],
+            metadatas=[{
+                "title": row.get('title') or "Untitled Blog",
+                "source": "User Blog Submission",
+                "country": "Africa (Global)", 
+                "original_id": f"blog_{blog_id}"
+            }],
+            ids=[f"blog_{blog_id}"]
+        )
     except Exception as e:
         print(f"Error embedding blog: {e}")
         

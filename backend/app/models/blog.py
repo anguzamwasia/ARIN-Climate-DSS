@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from app.database import Base
 
 class Blog(Base):
@@ -20,5 +20,6 @@ class Blog(Base):
     feedback = Column(Text, nullable=True)
     author_email = Column(String, nullable=True)
     previous_version = Column(Text, nullable=True)
+    edited_by_admin = Column(Boolean, default=False, nullable=True)
     submitted_at = Column(DateTime)
     reviewed_at = Column(DateTime, nullable=True)

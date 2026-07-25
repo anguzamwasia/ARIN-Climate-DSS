@@ -39,6 +39,9 @@ try:
         if 'previous_version' not in columns:
             conn.execute(text("ALTER TABLE blogs ADD COLUMN previous_version TEXT"))
             print("Migration: Added previous_version to blogs table.")
+        if 'edited_by_admin' not in columns:
+            conn.execute(text("ALTER TABLE blogs ADD COLUMN edited_by_admin BOOLEAN DEFAULT FALSE"))
+            print("Migration: Added edited_by_admin to blogs table.")
 except Exception as e:
     print(f"Auto-schema upgrade warning: {e}")
 

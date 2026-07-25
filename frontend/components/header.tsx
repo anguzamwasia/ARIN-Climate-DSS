@@ -59,6 +59,21 @@ export function Header() {
     }
   }
 
+  const mappedNavItems = navItems.map(item => {
+    if (item.submenu) {
+      return {
+        ...item,
+        submenu: item.submenu.map(sub => {
+          if (sub.label === "Submit Blog" && user) {
+            return { ...sub, href: "/blog/submit" }
+          }
+          return sub
+        })
+      }
+    }
+    return item
+  })
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border">
       <nav className="container mx-auto px-4 lg:px-8">
@@ -75,10 +90,10 @@ export function Header() {
               priority
             />
           </Link>
-
+ 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-1">
-            {navItems.map((item) => (
+            {mappedNavItems.map((item) => (
               <div
                 key={item.label}
                 className="relative"
@@ -221,7 +236,7 @@ export function Header() {
               className="lg:hidden border-t border-border"
             >
               <div className="py-4 space-y-2">
-                {navItems.map((item) => (
+                {mappedNavItems.map((item) => (
                   <div key={item.label}>
                     <Link
                       href={item.href}

@@ -44,7 +44,8 @@ export default function BlogDetailPage() {
               narrative: data.narrative,
               impact: data.impact,
               sources: data.sources,
-              background: data.background
+              background: data.background,
+              implications: data.implications
             }
           })
         } else {
