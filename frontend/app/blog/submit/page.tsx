@@ -336,15 +336,23 @@ export default function BlogSubmitPage() {
                     </div>
                   </div>
                   
-                  {editingBlogId && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-amber-800">
-                        <AlertCircle className="w-4 h-4" />
-                        <span className="text-sm font-semibold">You are currently editing a rejected submission.</span>
+                  {editingBlogId && (() => {
+                    const editingBlog = allBlogs.find(b => b.id === editingBlogId)
+                    const isDraft = editingBlog?.status === "draft"
+                    return (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-amber-800">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="text-sm font-semibold">
+                            {isDraft ? "You are currently editing a saved draft." : "You are currently editing a rejected submission."}
+                          </span>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => { setEditingBlogId(null); setFormData({authorName: user?.name || ""}); setUploadedImageBase64(null) }}>
+                          {isDraft ? "Cancel Editing" : "Cancel Edit"}
+                        </Button>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => { setEditingBlogId(null); setFormData({authorName: user?.name || ""}); setUploadedImageBase64(null) }}>Cancel Edit</Button>
-                    </div>
-                  )}
+                    )
+                  })()}
 
                   {submitError && (
                     <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
