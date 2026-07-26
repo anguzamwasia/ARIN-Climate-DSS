@@ -22,6 +22,7 @@ class BlogIn(BaseModel):
     sources: Optional[str] = None
     image_url: Optional[str] = None
     edited_by_admin: Optional[bool] = None
+    status: Optional[str] = 'pending'
 
 class BlogAction(BaseModel):
     feedback: Optional[str] = None
@@ -57,13 +58,17 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="A blog submission with this title already exists.")
 
-    db.execute(text("""
+    new_status = blog.status or 'pending'
+
+    res = db.execute(text("""
         INSERT INTO blogs (title, author_name, post_type, summary, background, findings, implications, narrative, impact, sources, image_url, status, submitted_at, author_email, edited_by_admin)
-        VALUES (:title, :author_name, :post_type, :summary, :background, :findings, :implications, :narrative, :impact, :sources, :image_url, 'pending', :submitted_at, :author_email, FALSE)
-    """), {**blog.dict(exclude={'edited_by_admin'}), "submitted_at": datetime.utcnow()})
+        VALUES (:title, :author_name, :post_type, :summary, :background, :findings, :implications, :narrative, :impact, :sources, :image_url, :status, :submitted_at, :author_email, FALSE)
+        RETURNING id
+    """), {**blog.dict(exclude={'edited_by_admin', 'status'}), "status": new_status, "submitted_at": datetime.utcnow()})
+    new_id = res.fetchone()[0]
     db.commit()
 
-    if blog.author_email:
+    if new_status != "draft" and blog.author_email:
         send_simulated_email(
             to_email=blog.author_email,
             subject="Climate Submission Received",
@@ -80,7 +85,10 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
         })
         db.commit()
 
-    return {"message": "Blog submitted for review"}
+    return {
+        "message": "Blog draft saved" if new_status == "draft" else "Blog submitted for review",
+        "id": new_id
+    }
 
 @router.put("/blogs/{blog_id}")
 def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
@@ -98,8 +106,6 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
     prev_version_str = row.get('previous_version')
     edited_flag = row.get('edited_by_admin') or False
 
-    # If the admin is saving changes, we store the original fields in previous_version
-    # so the contributor can see the differences (comparison diff view)
     if blog.edited_by_admin:
         import json
         blog_data = {
@@ -115,6 +121,8 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
         prev_version_str = json.dumps(blog_data)
         edited_flag = True
 
+    new_status = blog.status or 'pending'
+
     db.execute(text("""
         UPDATE blogs 
         SET title = :title, 
@@ -128,14 +136,15 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
             impact = :impact, 
             sources = :sources, 
             image_url = :image_url, 
-            status = 'pending',
+            status = :status,
             submitted_at = :submitted_at,
             author_email = :author_email,
             previous_version = :prev_version,
             edited_by_admin = :edited_by_admin
         WHERE id = :id
     """), {
-        **blog.dict(exclude={'edited_by_admin'}),
+        **blog.dict(exclude={'edited_by_admin', 'status'}),
+        "status": new_status,
         "submitted_at": datetime.utcnow(),
         "id": blog_id,
         "prev_version": prev_version_str,
@@ -143,24 +152,38 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
     })
     db.commit()
 
-    if blog.author_email:
+    if new_status != "draft" and blog.author_email:
+        is_re_submission = row.get('status') == 'rejected'
+        subject = "Climate Submission Resubmitted" if is_re_submission else "Climate Submission Received"
+        body_text = (
+            f"Hello {blog.author_name},\n\nYour revised submission '{blog.title}' has been successfully received and is currently under review."
+            if is_re_submission else
+            f"Hello {blog.author_name},\n\nYour submission '{blog.title}' has been successfully received and is currently under review."
+        )
+        notif_title = "Submission Revised" if is_re_submission else "Submission Received"
+        notif_msg = (
+            f"Your corrected work '{blog.title}' has been resubmitted and is under review."
+            if is_re_submission else
+            f"Your work '{blog.title}' has been received and is under review."
+        )
+
         send_simulated_email(
             to_email=blog.author_email,
-            subject="Climate Submission Resubmitted",
-            body=f"Hello {blog.author_name},\n\nYour revised submission '{blog.title}' has been successfully received and is currently under review."
+            subject=subject,
+            body=body_text
         )
         db.execute(text("""
             INSERT INTO notifications (user_email, title, message, is_read, created_at)
             VALUES (:email, :title, :message, FALSE, :now)
         """), {
             "email": blog.author_email,
-            "title": "Submission Revised",
-            "message": f"Your corrected work '{blog.title}' has been resubmitted and is under review.",
+            "title": notif_title,
+            "message": notif_msg,
             "now": datetime.utcnow()
         })
         db.commit()
 
-    return {"message": "Blog updated and submitted for review"}
+    return {"message": "Blog draft updated" if new_status == "draft" else "Blog updated and submitted for review"}
 
 @router.patch("/blogs/{blog_id}/approve")
 def approve_blog(blog_id: int, db: Session = Depends(get_db)):

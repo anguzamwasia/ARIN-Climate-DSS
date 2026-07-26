@@ -74,42 +74,43 @@ export default function BlogSubmitPage() {
   const [editingBlogId, setEditingBlogId] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showComparison, setShowComparison] = useState<Record<string, boolean>>({})
+  const [blogActionMessage, setBlogActionMessage] = useState("")
+
+  const fetchBlogs = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs`)
+      if (res.ok) {
+        const data = await res.json()
+        // Map snake_case to camelCase and unpack formData
+        const mapped = data.map((b: any) => ({
+          id: b.id.toString(),
+          title: b.title,
+          authorName: b.author_name,
+          authorEmail: b.author_email,
+          previousVersion: b.previous_version,
+          postType: b.post_type,
+          status: b.status,
+          submittedAt: b.submitted_at,
+          imageUrl: b.image_url,
+          feedback: b.feedback,
+          formData: {
+            summary: b.summary,
+            findings: b.findings,
+            narrative: b.narrative,
+            impact: b.impact,
+            sources: b.sources,
+            background: b.background,
+            implications: b.implications
+          }
+        }))
+        setAllBlogs(mapped)
+      }
+    } catch (err) {
+      console.error("Failed to fetch blogs", err)
+    }
+  }
 
   useEffect(() => {
-    // Fetch all blogs from Postgres
-    const fetchBlogs = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs`)
-        if (res.ok) {
-          const data = await res.json()
-          // Map snake_case to camelCase and unpack formData
-          const mapped = data.map((b: any) => ({
-            id: b.id.toString(),
-            title: b.title,
-            authorName: b.author_name,
-            authorEmail: b.author_email,
-            previousVersion: b.previous_version,
-            postType: b.post_type,
-            status: b.status,
-            submittedAt: b.submitted_at,
-            imageUrl: b.image_url,
-            feedback: b.feedback,
-            formData: {
-              summary: b.summary,
-              findings: b.findings,
-              narrative: b.narrative,
-              impact: b.impact,
-              sources: b.sources,
-              background: b.background,
-              implications: b.implications
-            }
-          }))
-          setAllBlogs(mapped)
-        }
-      } catch (err) {
-        console.error("Failed to fetch blogs", err)
-      }
-    }
     fetchBlogs()
     
     // Auto-fill author name from profile
@@ -156,8 +157,8 @@ export default function BlogSubmitPage() {
     reader.readAsDataURL(file)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent | null, isDraftMode: boolean = false) => {
+    if (e) e.preventDefault()
     if (imageError) return
     setSubmitError(null)
     setIsSubmitting(true)
@@ -165,18 +166,19 @@ export default function BlogSubmitPage() {
     await new Promise((resolve) => setTimeout(resolve, 1200))
 
     const payload = {
-      title: formData.title || "Untitled Document",
+      title: formData.title || `Draft - ${postType === 'research' ? 'Research' : 'Story'} - ${new Date().toLocaleString()}`,
       author_name: formData.authorName || user?.name || "Anonymous Contributor",
       author_email: user?.email || null,
       post_type: postType,
-      summary: formData.summary,
-      findings: formData.findings,
-      narrative: formData.narrative,
-      impact: formData.impact,
-      sources: formData.sources,
+      summary: formData.summary || "",
+      findings: formData.findings || "",
+      narrative: formData.narrative || "",
+      impact: formData.impact || "",
+      sources: formData.sources || "",
       image_url: uploadedImageBase64 || null,
-      background: formData.background,
-      implications: formData.implications
+      background: formData.background || "",
+      implications: formData.implications || "",
+      status: isDraftMode ? "draft" : "pending"
     }
 
     try {
@@ -192,36 +194,28 @@ export default function BlogSubmitPage() {
       })
 
       if (res.ok) {
-        // Optimistically add to list
-        const newBlog: Blog = {
-          id: editingBlogId || `temp-${Date.now()}`,
-          title: payload.title,
-          authorName: payload.author_name,
-          authorEmail: payload.author_email || undefined,
-          imageUrl: payload.image_url,
-          postType: postType,
-          status: "pending",
-          submittedAt: new Date().toISOString(),
-          formData: formData,
-        }
-        
-        if (editingBlogId) {
-          setAllBlogs(allBlogs.map(b => b.id === editingBlogId ? newBlog : b))
+        await fetchBlogs()
+
+        if (isDraftMode) {
+          setBlogActionMessage("💾 Draft saved successfully!")
+          setTimeout(() => setBlogActionMessage(""), 3000)
+          setActiveTab("status")
+          setFormData({ authorName: user?.name || "" })
+          setUploadedImageBase64(null)
+          setEditingBlogId(null)
         } else {
-          setAllBlogs([newBlog, ...allBlogs])
+          setSubmitSuccess(true)
+          setFormData({ authorName: user?.name || "" })
+          setUploadedImageBase64(null)
+          setEditingBlogId(null)
         }
-        
-        setSubmitSuccess(true)
-        setFormData({ authorName: user?.name || "" })
-        setUploadedImageBase64(null)
-        setEditingBlogId(null)
       } else {
         const errorData = await res.json()
-        setSubmitError(errorData.detail || "Failed to submit blog. Please check your inputs.")
+        setSubmitError(errorData.detail || "Failed to save blog. Please check your inputs.")
       }
     } catch (err) {
       console.error("Failed to submit blog", err)
-      setSubmitError("Failed to connect to backend server.")
+      setSubmitError("Failed to connect to server.")
     }
 
     setIsSubmitting(false)
@@ -277,6 +271,13 @@ export default function BlogSubmitPage() {
             <h1 className="text-3xl font-bold tracking-tight text-primary">My Climate Content</h1>
             <p className="text-muted-foreground mt-1">Submit new research or stories, and track the status of your submissions.</p>
           </div>
+
+          {blogActionMessage && (
+            <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
+              <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              <p className="text-sm font-semibold text-emerald-800">{blogActionMessage}</p>
+            </div>
+          )}
 
           {rejectedBlogs.length > 0 && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
@@ -398,11 +399,21 @@ export default function BlogSubmitPage() {
                       </div>
                     ))}
 
-                    <div className="flex items-center justify-between border-t pt-4">
-                      <p className="text-xs text-muted-foreground">{getRequiredFieldsFilled() ? "✓ All required structures ready" : "⚠ Missing mandatory fields"}</p>
-                      <Button type="submit" disabled={!getRequiredFieldsFilled() || isSubmitting}>
-                        {isSubmitting ? "Uploading Node..." : "Submit for Review"}
-                      </Button>
+                    <div className="flex flex-col sm:flex-row items-center justify-between border-t pt-4 gap-3">
+                      <p className="text-xs text-muted-foreground">{getRequiredFieldsFilled() ? "✓ All required structures ready" : "⚠ Missing mandatory fields (can still save draft)"}</p>
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                          type="button"
+                          onClick={(e) => handleSubmit(e, true)}
+                          disabled={isSubmitting}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm bg-white font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 flex-1 sm:flex-none text-center"
+                        >
+                          Save Draft 💾
+                        </button>
+                        <Button type="submit" disabled={!getRequiredFieldsFilled() || isSubmitting} className="flex-1 sm:flex-none">
+                          {isSubmitting ? "Uploading Node..." : "Submit for Review"}
+                        </Button>
+                      </div>
                     </div>
                   </form>
                 </div>
@@ -508,6 +519,18 @@ export default function BlogSubmitPage() {
                               </>
                             )}
                             
+                            {blog.status === "draft" && (
+                              <div className="mt-4 p-3 bg-gray-50 text-gray-800 border border-gray-200 rounded-lg text-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
+                                <div>
+                                  <strong className="block mb-1 text-gray-900">Draft Saved:</strong> 
+                                  <span>This content is saved as a draft. You can continue writing and submit it when ready.</span>
+                                </div>
+                                <Button size="sm" onClick={() => handleEditBlog(blog)}>
+                                  Resume Editing ✍️
+                                </Button>
+                              </div>
+                            )}
+
                             {blog.feedback && (
                               <div className="mt-4 p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
                                 <div>
