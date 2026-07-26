@@ -8,7 +8,7 @@ import dynamic from "next/dynamic"
 const KenyaMap = dynamic(() => import("../components/KenyaMapClient"), { ssr: false })
 import AfricaMap from "../../components/AfricaMap"
 import MediaModal from "../../components/MediaModal"
-import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCircle, MapPin, ArrowDown } from "lucide-react"
+import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCircle, MapPin, ArrowDown, Loader2 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { Suspense } from "react"
 import { AnalyticsDashboard } from "./AnalyticsDashboard"
@@ -228,7 +228,10 @@ function DataSourcesContent() {
           )}
 
           {loading ? (
-            <p className="text-muted-foreground">Loading documents...</p>
+            <div className="flex flex-col items-center justify-center py-20 bg-white border rounded-2xl shadow-sm">
+              <Loader2 className="w-10 h-10 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground mt-3 font-semibold">Loading data sources...</p>
+            </div>
           ) : activeSource === "ALL" && search === "" ? (
             <div className="bg-white border border-border rounded-xl p-8 shadow-sm">
               <h2 className="text-2xl font-semibold text-foreground mb-4">Climate Data Overview</h2>

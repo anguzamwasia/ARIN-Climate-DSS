@@ -10,6 +10,7 @@ import {
   CheckCircle,
   AlertCircle,
   Eye,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,7 +68,8 @@ export default function BlogSubmitPage() {
   const [postType, setPostType] = useState<PostType>("research")
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submittingType, setSubmittingType] = useState<"draft" | "submit" | null>(null)
+  const [isLoadingBlogs, setIsLoadingBlogs] = useState(true)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [allBlogs, setAllBlogs] = useState<Blog[]>([])
   const [imageError, setImageError] = useState<string | null>(null)
@@ -77,6 +79,7 @@ export default function BlogSubmitPage() {
   const [blogActionMessage, setBlogActionMessage] = useState("")
 
   const fetchBlogs = async () => {
+    setIsLoadingBlogs(true)
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs`)
       if (res.ok) {
@@ -107,6 +110,8 @@ export default function BlogSubmitPage() {
       }
     } catch (err) {
       console.error("Failed to fetch blogs", err)
+    } finally {
+      setIsLoadingBlogs(false)
     }
   }
 
@@ -161,7 +166,7 @@ export default function BlogSubmitPage() {
     if (e) e.preventDefault()
     if (imageError) return
     setSubmitError(null)
-    setIsSubmitting(true)
+    setSubmittingType(isDraftMode ? "draft" : "submit")
 
     await new Promise((resolve) => setTimeout(resolve, 1200))
 
@@ -218,7 +223,7 @@ export default function BlogSubmitPage() {
       setSubmitError("Failed to connect to server.")
     }
 
-    setIsSubmitting(false)
+    setSubmittingType(null)
   }
 
   const getRequiredFieldsFilled = () => {
@@ -405,13 +410,13 @@ export default function BlogSubmitPage() {
                         <button
                           type="button"
                           onClick={(e) => handleSubmit(e, true)}
-                          disabled={isSubmitting}
+                          disabled={submittingType !== null}
                           className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm bg-white font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 flex-1 sm:flex-none text-center"
                         >
-                          Save Draft 💾
+                          {submittingType === "draft" ? "Saving Draft..." : "Save Draft 💾"}
                         </button>
-                        <Button type="submit" disabled={!getRequiredFieldsFilled() || isSubmitting} className="flex-1 sm:flex-none">
-                          {isSubmitting ? "Uploading Node..." : "Submit for Review"}
+                        <Button type="submit" disabled={!getRequiredFieldsFilled() || submittingType !== null} className="flex-1 sm:flex-none">
+                          {submittingType === "submit" ? "Submitting for Review..." : "Submit for Review"}
                         </Button>
                       </div>
                     </div>
@@ -423,7 +428,12 @@ export default function BlogSubmitPage() {
 
           {activeTab === "status" && (
             <div className="space-y-4">
-              {userBlogs.length === 0 ? (
+              {isLoadingBlogs ? (
+                <div className="flex flex-col items-center justify-center py-20 bg-white border border-dashed rounded-xl shadow-none">
+                  <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                  <p className="text-sm text-muted-foreground mt-3 font-semibold">Loading submissions history...</p>
+                </div>
+              ) : userBlogs.length === 0 ? (
                 <div className="text-center py-16 bg-secondary/10 border border-dashed rounded-xl">
                   <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
                   <h3 className="text-base font-semibold">Your submission history is blank</h3>

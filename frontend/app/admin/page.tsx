@@ -51,6 +51,7 @@ export default function UnifiedAdminPortal() {
   const [showModal, setShowModal] = useState(false)
   const [rejectionError, setRejectionError] = useState<string | null>(null)
   const [isProcessingBlog, setIsProcessingBlog] = useState(false)
+  const [isLoadingBlogs, setIsLoadingBlogs] = useState(true)
   const [showEditModal, setShowEditModal] = useState(false)
   const [blogToEdit, setBlogToEdit] = useState<Blog | null>(null)
   const [editFormData, setEditFormData] = useState<Record<string, string>>({})
@@ -80,6 +81,7 @@ export default function UnifiedAdminPortal() {
   }
 
   const fetchBlogs = async () => {
+    setIsLoadingBlogs(true)
     try {
       const res = await fetch(`${API_URL}/blogs`)
       if (res.ok) {
@@ -106,6 +108,7 @@ export default function UnifiedAdminPortal() {
         setAllBlogs(mapped)
       }
     } catch (err) {}
+    setIsLoadingBlogs(false)
   }
 
   // --- MEDIA / DOC STATE MANAGEMENT ---
@@ -455,7 +458,12 @@ export default function UnifiedAdminPortal() {
                   </button>
                 </div>
 
-                {(blogSubTab === "pending" ? pendingBlogs : blogSubTab === "approved" ? approvedBlogs : rejectedBlogs).length === 0 ? (
+                {isLoadingBlogs ? (
+                  <div className="bg-white border rounded-xl p-16 flex flex-col items-center justify-center shadow-sm">
+                    <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+                    <p className="text-sm text-gray-500 mt-3 font-semibold">Loading review submissions...</p>
+                  </div>
+                ) : (blogSubTab === "pending" ? pendingBlogs : blogSubTab === "approved" ? approvedBlogs : rejectedBlogs).length === 0 ? (
                   <div className="bg-white border rounded-xl p-12 text-center text-gray-400 text-sm">
                     No entries in this status queue at this moment.
                   </div>
