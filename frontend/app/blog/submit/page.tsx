@@ -254,6 +254,7 @@ export default function BlogSubmitPage() {
       ['bold', 'italic', 'underline', 'strike'],
       [{ 'color': [] }, { 'background': [] }],
       [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      [{ 'align': [] }],
       ['link', 'clean']
     ]
   }

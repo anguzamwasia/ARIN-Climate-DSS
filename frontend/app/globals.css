@@ -173,3 +173,14 @@ h1, h2, h3, h4, h5, h6 {
   background: oklch(0.72 0.14 180 / 0.3);
   color: oklch(0.185 0.046 260);
 }
+
+/* Quill rich-text align classes */
+.ql-align-center {
+  text-align: center;
+}
+.ql-align-right {
+  text-align: right;
+}
+.ql-align-justify {
+  text-align: justify;
+}

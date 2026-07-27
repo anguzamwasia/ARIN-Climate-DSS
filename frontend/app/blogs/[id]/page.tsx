@@ -100,52 +100,35 @@ export default function BlogDetailPage() {
         </button>
 
         <article className="bg-white border rounded-2xl overflow-hidden shadow-sm">
-          {blog.imageUrl ? (
-            <div className="relative h-64 md:h-96 w-full bg-gray-100">
+          {/* Article Header Details */}
+          <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-8 md:p-12 border-b">
+            <span className={`w-fit mb-4 text-xs uppercase font-bold tracking-wide px-3 py-1.5 rounded-full shadow-sm ${blog.postType === 'research' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+              {blog.postType === 'research' ? '🔬 Research Paper' : '🌱 Community Story'}
+            </span>
+            <h1 className="text-3xl md:text-5xl font-serif font-bold text-foreground mb-6 leading-tight mt-4">
+              {blog.title}
+            </h1>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <User className="w-4 h-4" />
+                <span className="font-medium text-foreground">{blog.authorName}</span>
+              </div>
+              <span>•</span>
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" />
+                <span>{new Date(blog.submittedAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Featured Image */}
+          {blog.imageUrl && (
+            <div className="relative w-full overflow-hidden bg-gray-50 border-b flex justify-center">
               <img 
                 src={blog.imageUrl} 
                 alt={blog.title}
-                className="w-full h-full object-cover"
+                className="w-full h-auto max-h-[500px] object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6 md:p-10">
-                <span className={`w-fit mb-4 text-xs uppercase font-bold tracking-wide px-3 py-1.5 rounded-full shadow-sm backdrop-blur-md ${blog.postType === 'research' ? 'bg-blue-100/90 text-blue-800' : 'bg-amber-100/90 text-amber-800'}`}>
-                  {blog.postType === 'research' ? '🔬 Research Paper' : '🌱 Community Story'}
-                </span>
-                <h1 className="text-3xl md:text-5xl font-serif font-bold text-white mb-4 leading-tight">
-                  {blog.title}
-                </h1>
-                <div className="flex items-center gap-4 text-sm text-white/90">
-                  <div className="flex items-center gap-1.5">
-                    <User className="w-4 h-4" />
-                    <span className="font-medium">{blog.authorName}</span>
-                  </div>
-                  <span>•</span>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4" />
-                    <span>{new Date(blog.submittedAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-8 md:p-12 border-b">
-              <span className={`w-fit mb-4 text-xs uppercase font-bold tracking-wide px-3 py-1.5 rounded-full shadow-sm ${blog.postType === 'research' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                {blog.postType === 'research' ? '🔬 Research Paper' : '🌱 Community Story'}
-              </span>
-              <h1 className="text-3xl md:text-5xl font-serif font-bold text-foreground mb-6 leading-tight mt-4">
-                {blog.title}
-              </h1>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1.5">
-                  <User className="w-4 h-4" />
-                  <span className="font-medium text-foreground">{blog.authorName}</span>
-                </div>
-                <span>•</span>
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" />
-                  <span>{new Date(blog.submittedAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-                </div>
-              </div>
             </div>
           )}
 
