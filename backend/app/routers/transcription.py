@@ -92,13 +92,39 @@ async def download_kobo_media_asset(media_url: str, target_filename: str) -> boo
         return False
 
 
+def punctuate_transcript(text_content: str) -> str:
+    import os
+    from openai import OpenAI
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return text_content
+    try:
+        client = OpenAI(api_key=api_key)
+        prompt = (
+            "You are an expert transcriber. Your task is to add clean punctuation, capitalization, and paragraph breaks "
+            "to the following raw transcription text. Keep the words exactly as spoken, do not add or remove any content, "
+            "and do not change any phrasing. Format the output with clean spacing and paragraphs for readability.\n\n"
+            f"Raw Transcription:\n{text_content}"
+        )
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error(f"Failed to punctuate transcript via OpenAI: {e}")
+        return text_content
+
+
 def process_webhook_speech_pipeline(media_url: str, filename: str, submission_id: int):
     try:
         ok = asyncio.run(download_kobo_media_asset(media_url, filename))
         if not ok:
             logger.error(f"Aborting pipeline for submission {submission_id}")
             return
-        transcript = transcribe_community_audio(filename)
+        raw_transcript = transcribe_community_audio(filename)
+        transcript = punctuate_transcript(raw_transcript)
         save_transcript_to_db(filename, transcript)
         logger.info(f"Pipeline complete for submission {submission_id}")
     except Exception as e:
@@ -125,7 +151,8 @@ async def receive_kobo_form_submission(payload: KoboWebhookPayload, background_t
 
 def process_admin_media_async(filename: str):
     try:
-        transcript = transcribe_community_audio(filename)
+        raw_transcript = transcribe_community_audio(filename)
+        transcript = punctuate_transcript(raw_transcript)
         save_transcript_to_db(filename, transcript)
         logger.info(f"Admin media processed: {filename}")
     except Exception as e:
