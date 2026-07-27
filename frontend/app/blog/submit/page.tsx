@@ -485,7 +485,7 @@ export default function BlogSubmitPage() {
 
                         return (
                           <div className="grid grid-cols-1 gap-3 text-sm bg-gray-50/70 p-4 rounded-lg border border-gray-100 overflow-hidden break-words">
-                            {blog.previousVersion && parsedPrev && (
+                            {blog.previousVersion && parsedPrev && blog.status === "approved" && (
                               <div className="mb-2 border-b pb-2">
                                 <button 
                                   type="button"
@@ -497,7 +497,7 @@ export default function BlogSubmitPage() {
                               </div>
                             )}
 
-                            {showComparison[blog.id] && parsedPrev ? (
+                            {showComparison[blog.id] && parsedPrev && blog.status === "approved" ? (
                               <div className="space-y-4 bg-amber-50/50 p-3 rounded-lg border border-amber-100 mb-2 text-xs">
                                 <h4 className="font-bold text-xs uppercase text-amber-900 tracking-wide mb-2">Original vs Admin-Corrected Comparison (Left: Your Draft / Right: Published)</h4>
                                 {Object.keys(parsedPrev).map((field) => {
