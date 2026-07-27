@@ -347,6 +347,14 @@ export default function UnifiedAdminPortal() {
             <Image src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-PPdpF8VNtfjX7cklPViGsEk4BGiGHl.jpg" alt="ARIN" width={90} height={30} className="object-contain cursor-pointer" />
           </Link>
         </div>
+        <div className="flex items-center gap-3">
+          <Link href="/blog/submit">
+            <button className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer border-0">
+              <FileText className="w-4 h-4" />
+              Write Blog (Company Voice)
+            </button>
+          </Link>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
