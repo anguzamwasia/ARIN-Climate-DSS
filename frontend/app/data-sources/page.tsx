@@ -65,6 +65,7 @@ function DataSourcesContent() {
   const [search, setSearch] = useState("")
   const [selectedMapCounty, setSelectedMapCounty] = useState<string | null>(null)
   const [selectedMedia, setSelectedMedia] = useState<Doc | null>(null)
+  const [selectedKoboDoc, setSelectedKoboDoc] = useState<Doc | null>(null)
   const [isInfographicOpen, setIsInfographicOpen] = useState(false)
 
   useEffect(() => {
@@ -296,7 +297,14 @@ function DataSourcesContent() {
                   )}
 
                   <div className="flex gap-3 mt-auto pt-2">
-                    {getCategory(doc.source, doc.country) === "Community Insights" ? (
+                    {doc.source === "KOBO" ? (
+                      <button 
+                        onClick={() => setSelectedKoboDoc(doc)}
+                        className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-800 font-medium bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors"
+                      >
+                        <FileText className="w-4 h-4" /> View Field Data
+                      </button>
+                    ) : getCategory(doc.source, doc.country) === "Community Insights" ? (
                       <button 
                         onClick={() => setSelectedMedia(doc)}
                         className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors"
@@ -336,6 +344,55 @@ function DataSourcesContent() {
             transcript={selectedMedia?.content_text || selectedMedia?.body || ""}
             insights={selectedMedia ? ["Discussed climate change impacts on local agriculture.", "Highlighted the need for immediate funding.", "Identified key vulnerable regions in Kenya."] : []}
           />
+
+          {/* Kobo Detail Modal */}
+          <Dialog open={!!selectedKoboDoc} onOpenChange={(open) => !open && setSelectedKoboDoc(null)}>
+            <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-6 bg-white rounded-2xl shadow-lg border border-border">
+              <DialogHeader className="border-b pb-4 flex-shrink-0">
+                <DialogTitle className="text-xl font-bold text-primary flex items-center gap-2">
+                  <Database className="w-5 h-5 text-accent" />
+                  {selectedKoboDoc?.title}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground pt-1">
+                  Submitted from: {selectedKoboDoc?.country} • Synced on: {selectedKoboDoc && new Date(selectedKoboDoc.scraped_at).toLocaleDateString()}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-1">
+                {selectedKoboDoc?.content_text ? (
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {selectedKoboDoc.content_text.split('\n').map((line, idx) => {
+                      const colonIdx = line.indexOf(':');
+                      if (colonIdx === -1) return <p key={idx} className="text-sm text-foreground">{line}</p>;
+                      const label = line.substring(0, colonIdx).replace(/_/g, ' ').toUpperCase();
+                      const value = line.substring(colonIdx + 1).trim();
+                      if (!value) return null;
+                      return (
+                        <div key={idx} className="p-3 bg-secondary/30 rounded-lg border border-border/40 flex flex-col md:flex-row md:items-start gap-1 md:gap-4 text-sm">
+                          <span className="font-bold text-[10px] text-primary/70 uppercase tracking-wider md:w-1/3 flex-shrink-0 pt-0.5">
+                            {label}
+                          </span>
+                          <span className="text-foreground flex-1 break-words">
+                            {value}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic text-center py-8">No content available for this submission.</p>
+                )}
+              </div>
+              <DialogFooter className="border-t pt-4 flex-shrink-0 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedKoboDoc(null)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg text-sm transition-colors border border-border"
+                >
+                  Close
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={isInfographicOpen} onOpenChange={setIsInfographicOpen}>
             <DialogContent className="sm:max-w-md text-center">

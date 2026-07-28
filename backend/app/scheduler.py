@@ -11,14 +11,20 @@ def run_scrapers():
     
     python_exe = sys.executable # Use the current venv's python
 
-    spiders = ["knbs_spider.py", "meteo_spider.py", "worldbank_spider.py"]
+    spiders = ["knbs_spider.py", "meteo_spider.py", "worldbank_spider.py", "unfccc_reports_fast.py"]
     
     for spider in spiders:
         print(f"Running {spider}...")
-        output_name = spider.replace('_spider.py', '_reports_new.json')
-        final_name = spider.replace('_spider.py', '_reports.json')
+        if spider.endswith('_spider.py'):
+            output_name = spider.replace('_spider.py', '_reports_new.json')
+            final_name = spider.replace('_spider.py', '_reports.json')
+        else:
+            output_name = spider.replace('.py', '_new.json')
+            final_name = spider.replace('.py', '.json')
+            
         try:
-            subprocess.run([python_exe, "-m", "scrapy", "runspider", spider, "-O", f"output/{output_name}:json"], cwd=scraper_dir, check=True)
+            # We use output_name to store temporary results
+            subprocess.run([python_exe, "-m", "scrapy", "runspider", spider, "-O", f"output/{output_name}"], cwd=scraper_dir, check=True)
             # Replace old file with new to prevent endless appending
             old_path = os.path.join(scraper_dir, 'output', final_name)
             new_path = os.path.join(scraper_dir, 'output', output_name)

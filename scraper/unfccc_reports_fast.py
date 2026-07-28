@@ -9,7 +9,9 @@ def get_scraperapi_url(url):
 
 class PostgresPipeline:
     def __init__(self):
-        self.conn = psycopg2.connect("postgresql://postgres:password@localhost:5432/arin_dss")
+        import os
+        db_url = os.getenv("DATABASE_URL", "postgresql://arin:arin_secure_2026@postgres:5432/arin_dss")
+        self.conn = psycopg2.connect(db_url)
         self.cur = self.conn.cursor()
 
     def process_item(self, item, spider):
