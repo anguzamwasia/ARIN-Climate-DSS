@@ -86,7 +86,7 @@ export function HeroSection() {
                 className="bg-accent hover:bg-accent/90 text-accent-foreground text-base px-8"
                 asChild
               >
-                <Link href="#features">
+                <Link href="/features">
                   Explore Features
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Link>

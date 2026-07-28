@@ -13,11 +13,11 @@ const navItems = [
   { label: "About", href: "/about" },
   {
     label: "Features",
-    href: "/about#features",
+    href: "/features",
     submenu: [
-      { label: "Data Sources", href: "/#data-sources", icon: Database },
-      { label: "ARIN AI Chatbot", href: "/#chatbot", icon: Bot },
-      { label: "Submit Blog", href: "/#blog", icon: FileText },
+      { label: "Data Sources", href: "/features#data-sources", icon: Database },
+      { label: "ARIN AI Chatbot", href: "/features#chatbot", icon: Bot },
+      { label: "Submit Blog", href: "/features#blog", icon: FileText },
     ],
   },
   { label: "Read Blogs", href: "/blogs" },

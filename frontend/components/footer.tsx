@@ -8,7 +8,7 @@ const footerLinks = {
   quickLinks: [
     { label: "Home", href: "/" },
     { label: "About", href: "/about" },
-    { label: "Features", href: "/about#features" },
+    { label: "Features", href: "/features" },
     { label: "Contact", href: "/about#contact" },
   ],
   resources: [

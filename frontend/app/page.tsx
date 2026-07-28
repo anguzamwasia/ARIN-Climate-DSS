@@ -1,7 +1,6 @@
 import { Header } from "@/components/header"
 import { HeroSection } from "@/components/hero-section"
 import { ImpactSection } from "@/components/impact-section"
-import { FeaturesSection } from "@/components/features-section"
 import { Footer } from "@/components/footer"
 
 export default function Home() {
@@ -10,7 +9,6 @@ export default function Home() {
       <Header />
       <HeroSection />
       <ImpactSection />
-      <FeaturesSection />
       <Footer />
     </main>
   )
