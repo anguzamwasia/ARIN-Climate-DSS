@@ -30,13 +30,13 @@ def fetch_json(url):
         return None
 
 def generate_kobo_insights(content_text):
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return "Field Submission", "No insights generated."
         
     try:
-        import google.genai as genai
-        client = genai.Client(api_key=api_key)
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
         
         prompt = f"""
         Analyze the following KoboCollect questionnaire survey submission.
@@ -53,11 +53,16 @@ def generate_kobo_insights(content_text):
         {content_text}
         """
         
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt,
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that outputs only valid JSON responses."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"}
         )
-        text_resp = response.text.replace('```json', '').replace('```', '').strip()
+        
+        text_resp = response.choices[0].message.content.strip()
         data = json.loads(text_resp)
         
         topic = data.get("topic", "Field Submission")
