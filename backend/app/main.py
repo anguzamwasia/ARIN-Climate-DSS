@@ -13,6 +13,16 @@ scheduler = BackgroundScheduler()
 async def lifespan(app: FastAPI):
     # Schedule scrapers to run twice a week (Monday and Thursday at 2 AM)
     scheduler.add_job(run_scrapers, 'cron', day_of_week='mon,thu', hour=2, minute=0)
+    
+    # Schedule Kobo sync to run immediately and every 15 minutes
+    try:
+        from kobo_sync import sync_kobo
+        scheduler.add_job(sync_kobo, 'date') # Run once on startup
+        scheduler.add_job(sync_kobo, 'interval', minutes=15)
+        print("Scheduler: KoboToolbox sync registered successfully.")
+    except Exception as e:
+        print(f"Scheduler Warning: Failed to register KoboToolbox sync: {e}")
+        
     scheduler.start()
     yield
     scheduler.shutdown()
