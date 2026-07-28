@@ -181,7 +181,7 @@ function DataSourcesContent() {
 
           {/* Interactive Map Section */}
           {activeSource === "National Reports" && (
-            <div className="mb-12 grid grid-cols-1 lg:grid-cols-3 gap-8 items-center bg-white p-6 rounded-2xl border border-border shadow-sm">
+            <div className="mb-12 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start bg-white p-6 rounded-2xl border border-border shadow-sm">
               <div className="col-span-1">
                 <h2 className="text-2xl font-semibold text-foreground mb-4">Explore by County</h2>
                 <p className="text-muted-foreground text-sm leading-relaxed">
@@ -205,7 +205,7 @@ function DataSourcesContent() {
           )}
 
           {activeSource === "Regional Data" && (
-            <div className="mb-12 grid grid-cols-1 lg:grid-cols-3 gap-8 items-center bg-white p-6 rounded-2xl border border-border shadow-sm">
+            <div className="mb-12 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start bg-white p-6 rounded-2xl border border-border shadow-sm">
               <div className="col-span-1">
                 <h2 className="text-2xl font-semibold text-foreground mb-4">African Perspective</h2>
                 <p className="text-muted-foreground text-sm leading-relaxed">
@@ -237,8 +237,7 @@ function DataSourcesContent() {
             <div className="bg-white border border-border rounded-xl p-8 shadow-sm">
               <h2 className="text-2xl font-semibold text-foreground mb-4">Climate Data Overview</h2>
               <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-                The Climate DSS automatically ingests, processes, and synthesizes climate policy data from multiple sources. It currently tracks <strong>{docs.length}</strong> documents across Africa.
-                Select a specific category above to explore individual documents and datasets.
+                This platform serves as a centralized, evidence-informed knowledge hub designed to bridge the gap between climate research, local community experiences, and actionable policy decisions across Africa. By leveraging advanced AI-driven data synthesis and interactive geographic mapping, the Climate DSS provides researchers, government agencies, and policy analysts with real-time access to key environmental intelligence. The system currently tracks <strong>{docs.length}</strong> records, providing a comprehensive repository of qualitative community insights, structured surveys, national frameworks, and regional policy reports to guide climate adaptation strategies. Use the category filters above to explore our integrated datasets or query the interactive maps directly to find localized research.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
