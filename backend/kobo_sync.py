@@ -29,6 +29,42 @@ def fetch_json(url):
         print(f"Failed to fetch {url}: {e}")
         return None
 
+def generate_kobo_insights(content_text):
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return "Field Submission", "No insights generated."
+        
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        prompt = f"""
+        Analyze the following KoboCollect questionnaire survey submission.
+        1. Identify a 2-3 word main topic for the survey response (e.g., "Drought Adaptability", "Crop Loss Feedback").
+        2. Extract a 1-2 sentence main insight or summary describing the response.
+        
+        Return the result strictly as a valid JSON object:
+        {{
+            "topic": "...",
+            "insights": "..."
+        }}
+        
+        Survey Response:
+        {content_text}
+        """
+        
+        response = model.generate_content(prompt)
+        text_resp = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(text_resp)
+        
+        topic = data.get("topic", "Field Submission")
+        insights = data.get("insights", "No insights generated.")
+        return topic, insights
+    except Exception as e:
+        print(f"Failed to generate insights: {e}")
+        return "Field Submission", "No insights generated."
+
 def sync_kobo():
     print("Fetching assets...")
     assets_data = fetch_json(BASE_URL)
@@ -67,20 +103,22 @@ def sync_kobo():
                 scraped_at = sub.get("_submission_time")
                 
                 detected_county = extract_county(content_text)
+                topic, insights = generate_kobo_insights(content_text)
                 
                 conn.execute(
                     text('''
-                        INSERT INTO documents (title, url, type, country, source, scraped_at, content_text)
-                        VALUES (:title, :url, :type, :country, :source, :scraped_at, :content_text)
+                        INSERT INTO documents (title, url, type, country, source, scraped_at, content_text, body)
+                        VALUES (:title, :url, :type, :country, :source, :scraped_at, :content_text, :body)
                     '''),
                     {
                         "title": f"{title} (Field Submission)",
                         "url": f"https://kf.kobotoolbox.org/#/forms/{uid}/data",
-                        "type": "Field Submission",
+                        "type": topic,
                         "country": detected_county,
                         "source": "KOBO",
                         "scraped_at": scraped_at if scraped_at else datetime.utcnow().isoformat(),
-                        "content_text": content_text
+                        "content_text": content_text,
+                        "body": insights
                     }
                 )
                 

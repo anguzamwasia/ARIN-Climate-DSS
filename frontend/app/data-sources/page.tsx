@@ -286,13 +286,13 @@ function DataSourcesContent() {
                 <div key={doc.id} className="bg-white border border-border rounded-xl p-4 flex flex-col gap-2 hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-accent/10 text-accent">
-                      {getCategory(doc.source, doc.country) === "Community Insights" ? doc.type || "Insight" : doc.source}
+                      {doc.source === "KOBO" ? doc.type || "Field Data" : getCategory(doc.source, doc.country) === "Community Insights" ? doc.type || "Insight" : doc.source}
                     </span>
                     {doc.country && <span className="text-[10px] text-muted-foreground">{doc.country}</span>}
                   </div>
                   <h3 className="font-medium text-sm text-foreground line-clamp-3">{doc.title}</h3>
                   
-                  {getCategory(doc.source, doc.country) === "Community Insights" && (
+                  {(getCategory(doc.source, doc.country) === "Community Insights" || doc.source === "KOBO") && doc.body && (
                      <p className="text-xs text-muted-foreground line-clamp-3 my-2">{doc.body}</p>
                   )}
 
@@ -358,6 +358,16 @@ function DataSourcesContent() {
                 </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-y-auto py-4 space-y-3 pr-1">
+                {selectedKoboDoc?.body && (
+                  <div className="p-4 bg-emerald-50/50 border border-emerald-100/60 rounded-xl mb-4">
+                    <h4 className="text-xs font-bold text-emerald-800 mb-1.5 flex items-center gap-1.5">
+                      ✨ AI Summary & Insights
+                    </h4>
+                    <p className="text-xs text-emerald-950 leading-relaxed font-medium">
+                      {selectedKoboDoc.body}
+                    </p>
+                  </div>
+                )}
                 {selectedKoboDoc?.content_text ? (
                   <div className="grid grid-cols-1 gap-2.5">
                     {selectedKoboDoc.content_text.split('\n').map((line, idx) => {
