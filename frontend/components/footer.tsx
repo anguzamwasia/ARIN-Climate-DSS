@@ -9,7 +9,6 @@ const footerLinks = {
     { label: "Home", href: "/" },
     { label: "About", href: "/about" },
     { label: "Features", href: "/features" },
-    { label: "Contact", href: "/about#contact" },
   ],
   resources: [
     { label: "AI Assistant", href: "/chatbot" },
