@@ -43,7 +43,7 @@ export function AboutSection() {
   const isInView = useInView(ref, { once: true, margin: "-100px" })
 
   return (
-    <section ref={ref} id="about" className="py-20 lg:py-28 bg-white">
+    <section ref={ref} id="about" className="py-10 lg:py-16 bg-white">
       <div className="container mx-auto px-4 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Content */}

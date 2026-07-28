@@ -197,14 +197,14 @@ export function FeaturesSection() {
   }, [])
 
   return (
-    <section ref={ref} id="features" className="py-20 lg:py-28 bg-white">
+    <section ref={ref} id="features" className="py-10 lg:py-16 bg-white">
       <div className="container mx-auto px-4 lg:px-8">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-8"
         >
           <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4">
             What We Offer
@@ -216,9 +216,9 @@ export function FeaturesSection() {
             Access comprehensive climate data, get AI-powered insights, and contribute your research to Africa&apos;s climate knowledge base.
           </p>
         </motion.div>
-
+ 
         {/* Features */}
-        <div className="space-y-24">
+        <div className="space-y-12">
           {features.map((feature, index) => (
             <motion.div
               key={feature.id}

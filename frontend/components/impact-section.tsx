@@ -86,13 +86,13 @@ export function ImpactSection() {
     : defaultStats
 
   return (
-    <section ref={ref} className="py-20 lg:py-28 bg-secondary/50">
+    <section ref={ref} className="py-10 lg:py-16 bg-secondary/50">
       <div className="container mx-auto px-4 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-8"
         >
           <span className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4">
             Our Reach
