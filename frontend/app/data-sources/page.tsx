@@ -37,17 +37,33 @@ interface Doc {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
+const isCounty = (country?: string) => {
+  if (!country) return false;
+  const normalized = country.toLowerCase().trim();
+  if (normalized === "kenya" || normalized === "africa" || normalized === "africa (global)") return false;
+  
+  const africanCountries = [
+    "algeria", "angola", "benin", "botswana", "burkina faso", "burundi", "cabo verde", "cameroon", 
+    "central african republic", "chad", "comoros", "congo", "cote d'ivoire", "djibouti", "egypt", 
+    "equatorial guinea", "eritrea", "eswatini", "ethiopia", "gabon", "gambia", "ghana", "guinea", 
+    "guinea-bissau", "kenya", "lesotho", "liberia", "libya", "madagascar", "malawi", "mali", 
+    "mauritania", "mauritius", "morocco", "mozambique", "namibia", "niger", "nigeria", "rwanda", 
+    "sao tome and principe", "senegal", "seychelles", "sierra leone", "somalia", "south africa", 
+    "south sudan", "sudan", "tanzania", "togo", "tunisia", "uganda", "zambia", "zimbabwe"
+  ];
+  if (africanCountries.includes(normalized)) return false;
+  return true;
+}
+
 const getCategory = (source: string, country?: string) => {
   if (["KOBO"].includes(source)) return "Field Submissions";
-  if (["UNFCCC"].includes(source)) return "Regional Data";
   if (["WHISPER"].includes(source)) return "Community Insights";
-  if (source === "World Bank") {
-    if (country && country !== "Kenya" && !country.endsWith("County")) return "Regional Data";
+  if (source === "ARIN") return "Others";
+
+  if (isCounty(country)) {
     return "National Reports";
   }
-  if (["KNBS", "KMD"].includes(source)) return "National Reports";
-  if (source === "ARIN") return "Others";
-  return source;
+  return "Regional Data";
 }
 
 const categoryIcons: Record<string, any> = {
@@ -104,27 +120,20 @@ function DataSourcesContent() {
     const matchesSource = activeSource === "ALL" || category === activeSource
     const matchesSearch = search === "" || d.title?.toLowerCase().includes(search.toLowerCase()) || d.country?.toLowerCase().includes(search.toLowerCase())
     
-    // If National Reports is active, ONLY show documents if a county is selected OR it is a national report
+    // If National Reports is active, ONLY show documents if a county is selected
     if (activeSource === "National Reports") {
-      if (search !== "") {
-        return matchesSearch && matchesSource
-      }
       if (!selectedMapCounty) {
-          // If no county selected, only show national-level reports
-          return (!d.country || d.country === "Kenya") && matchesSource
+          return false;
       }
       // If county selected, show county-level reports
-      return d.country === selectedMapCounty && matchesSource
+      return d.country === selectedMapCounty && matchesSource;
     }
 
     if (activeSource === "Regional Data") {
-      if (search !== "") {
-          return matchesSearch && matchesSource
-      }
       if (!selectedMapCounty) {
-          return false
+          return false;
       }
-      return d.country === selectedMapCounty && matchesSource
+      return d.country === selectedMapCounty && matchesSource;
     }
 
     // For ALL or other sources, keep the original filtering behavior
@@ -169,16 +178,6 @@ function DataSourcesContent() {
               )
             })}
           </div>
-
-          {activeSource !== "ALL" && activeSource !== "Community Insights" && (
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={activeSource === "National Reports" ? "Search by title or county..." : "Search by title or country..."}
-              className="w-full md:w-96 mb-6 px-4 py-2 rounded-lg border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          )}
 
           {/* Interactive Map Section */}
           {activeSource === "National Reports" && (
