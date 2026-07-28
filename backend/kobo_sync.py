@@ -35,9 +35,8 @@ def generate_kobo_insights(content_text):
         return "Field Submission", "No insights generated."
         
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        import google.genai as genai
+        client = genai.Client(api_key=api_key)
         
         prompt = f"""
         Analyze the following KoboCollect questionnaire survey submission.
@@ -54,7 +53,10 @@ def generate_kobo_insights(content_text):
         {content_text}
         """
         
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt,
+        )
         text_resp = response.text.replace('```json', '').replace('```', '').strip()
         data = json.loads(text_resp)
         
