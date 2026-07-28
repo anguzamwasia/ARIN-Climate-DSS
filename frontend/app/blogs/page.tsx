@@ -6,6 +6,7 @@ import Image from "next/image"
 import { ChevronLeft, User, BookMarked, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 
 type BlogStatus = "draft" | "pending" | "approved" | "rejected"
 type PostType = "research" | "story"
@@ -150,6 +151,7 @@ export default function PublicBlogsPage() {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   )
 }

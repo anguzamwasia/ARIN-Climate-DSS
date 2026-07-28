@@ -10,14 +10,14 @@ import { useAuth } from "@/contexts/auth-context"
 
 const navItems = [
   { label: "Home", href: "/" },
-  { label: "About", href: "/#about" },
+  { label: "About", href: "/about" },
   {
     label: "Features",
-    href: "/#features",
+    href: "/about#features",
     submenu: [
-      { label: "Data Sources", href: "/#data-sources", icon: Database },
-      { label: "ARIN AI Chatbot", href: "/#chatbot", icon: Bot },
-      { label: "Submit Blog", href: "/#blog", icon: FileText },
+      { label: "Data Sources", href: "/data-sources", icon: Database },
+      { label: "ARIN AI Chatbot", href: "/chatbot", icon: Bot },
+      { label: "Submit Blog", href: "/blog/submit", icon: FileText },
     ],
   },
   { label: "Read Blogs", href: "/blogs" },

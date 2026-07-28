@@ -6,10 +6,10 @@ import { Twitter, Linkedin, Youtube, Mail, ExternalLink } from "lucide-react"
 
 const footerLinks = {
   quickLinks: [
-    { label: "Home", href: "#" },
-    { label: "About", href: "#about" },
-    { label: "Features", href: "#features" },
-    { label: "Contact", href: "#contact" },
+    { label: "Home", href: "/" },
+    { label: "About", href: "/about" },
+    { label: "Features", href: "/about#features" },
+    { label: "Contact", href: "/about#contact" },
   ],
   resources: [
     { label: "AI Assistant", href: "/chatbot" },

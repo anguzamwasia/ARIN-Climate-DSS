@@ -12,6 +12,7 @@ import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCir
 import { ProtectedRoute } from "@/components/protected-route"
 import { Suspense } from "react"
 import { AnalyticsDashboard } from "./AnalyticsDashboard"
+import { Footer } from "@/components/footer"
 import {
   Dialog,
   DialogContent,
@@ -433,6 +434,7 @@ function DataSourcesContent() {
           </Dialog>
 
         </main>
+        <Footer />
       </div>
     </ProtectedRoute>
   )
