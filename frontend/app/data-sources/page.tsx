@@ -151,7 +151,7 @@ function DataSourcesContent() {
         <main className="container mx-auto px-4 lg:px-8 py-10">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-primary mb-2">Data Sources</h1>
-            <p className="text-muted-foreground">Browse all documents and field data ingested into the Climate DSS, grouped by source.</p>
+            <p className="text-muted-foreground">The main data sources in this DSS include National Reports, Regional Data (NDCs, UNFCCC Reports, World Bank Reports), Community Generated Insights, Field Collected data and Data ingested by the ARIN admin.</p>
           </div>
 
           <div className="flex flex-wrap gap-2 mb-6">
@@ -170,7 +170,7 @@ function DataSourcesContent() {
             })}
           </div>
 
-          {activeSource !== "Community Insights" && (
+          {activeSource !== "ALL" && activeSource !== "Community Insights" && (
             <input
               type="text"
               value={search}
