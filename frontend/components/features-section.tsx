@@ -133,7 +133,7 @@ const features = [
   {
     id: "blog",
     icon: FileText,
-    title: "Share Your Research",
+    title: "Share Your Research and Stories",
     subtitle: "Contribute to the Community",
     description: "Submit your climate research findings using our structured template. Our editorial team reviews all submissions to ensure quality and accuracy before publication.",
     capabilities: [
