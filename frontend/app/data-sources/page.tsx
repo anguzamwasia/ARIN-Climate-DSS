@@ -13,6 +13,7 @@ import { ProtectedRoute } from "@/components/protected-route"
 import { Suspense } from "react"
 import { AnalyticsDashboard } from "./AnalyticsDashboard"
 import { Footer } from "@/components/footer"
+import { Header } from "@/components/header"
 import {
   Dialog,
   DialogContent,
@@ -144,18 +145,8 @@ function DataSourcesContent() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-50 bg-primary text-white">
-          <div className="container mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <Image src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-PPdpF8VNtfjX7cklPViGsEk4BGiGHl.jpg" alt="ARIN" width={100} height={32} className="object-contain" style={{ width: "auto", height: "32px" }} />
-              <span className="font-semibold hidden sm:inline">Climate DSS</span>
-            </Link>
-            <Link href="/" className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Home
-            </Link>
-          </div>
-        </header>
+        <Header />
+        <div className="pt-16"></div>
 
         <main className="container mx-auto px-4 lg:px-8 py-10">
           <div className="mb-8">
