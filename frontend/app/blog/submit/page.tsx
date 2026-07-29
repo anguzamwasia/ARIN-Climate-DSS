@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
+import { Header } from "@/components/header"
 import dynamic from "next/dynamic"
 import "react-quill-new/dist/quill.snow.css"
 
@@ -262,15 +263,8 @@ export default function BlogSubmitPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background text-foreground">
-        <header className="sticky top-0 z-50 bg-white border-b border-border">
-          <div className="container mx-auto px-4 lg:px-8 h-16 flex items-center">
-            <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm">
-              <ChevronLeft className="w-4 h-4" /> Back
-            </Link>
-            <div className="h-6 w-px bg-border mx-4" />
-            <Image src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-PPdpF8VNtfjX7cklPViGsEk4BGiGHl.jpg" alt="ARIN" width={80} height={28} className="object-contain" />
-          </div>
-        </header>
+        <Header />
+        <div className="pt-16"></div>
 
         <main className="container mx-auto px-4 lg:px-8 py-10 max-w-4xl">
           <div className="mb-6">

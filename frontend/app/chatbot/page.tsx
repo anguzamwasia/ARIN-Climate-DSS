@@ -9,6 +9,7 @@ import { Send, Plus, MessageSquare, Sparkles, Globe, FileText, Database, ArrowLe
 import { Button } from "@/components/ui/button"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
+import { Header } from "@/components/header"
 
 interface Message {
   id: string
@@ -167,10 +168,12 @@ export default function ChatbotPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen bg-background">
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.aside initial={{ width: 0, opacity: 0 }} animate={{ width: 280, opacity: 1 }} exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="hidden md:flex flex-col bg-primary text-white overflow-hidden">
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <div className="pt-16 flex-1 flex h-[calc(100vh-4rem)] overflow-hidden">
+          <AnimatePresence>
+            {sidebarOpen && (
+              <motion.aside initial={{ width: 0, opacity: 0 }} animate={{ width: 280, opacity: 1 }} exit={{ width: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="hidden md:flex flex-col bg-primary text-white overflow-hidden">
               <div className="p-4 border-b border-white/10">
                 <Button onClick={handleNewChat} variant="outline" className="w-full justify-start gap-2 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white">
                   <Plus className="w-4 h-4" />New Chat
@@ -215,9 +218,6 @@ export default function ChatbotPage() {
                     <div className="font-medium">{user?.name}</div>
                   </div>
                 </div>
-                <Link href="/" className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/10">
-                  <ArrowLeft className="w-4 h-4" />Back to Home
-                </Link>
               </div>
             </motion.aside>
           )}
@@ -226,16 +226,10 @@ export default function ChatbotPage() {
         <main className="flex-1 flex flex-col">
           <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-white">
             <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:block p-2 hover:bg-secondary rounded-lg transition-colors">
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-secondary rounded-lg transition-colors">
                 <MessageSquare className="w-5 h-5 text-muted-foreground" />
               </button>
-              <Link href="/" className="md:hidden p-2 hover:bg-secondary rounded-lg transition-colors">
-                <ArrowLeft className="w-5 h-5 text-muted-foreground" />
-              </Link>
-              <div className="flex items-center gap-2">
-                <Image src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-PPdpF8VNtfjX7cklPViGsEk4BGiGHl.jpg" alt="ARIN" width={120} height={40} className="object-contain" style={{ width: "auto", height: "36px" }} />
-                <span className="text-lg font-semibold text-primary hidden sm:inline">Climate AI</span>
-              </div>
+              <span className="text-lg font-semibold text-primary">Climate AI</span>
             </div>
             <div className="flex items-center gap-2">
               {activeMessages.length > 0 && (
