@@ -36,6 +36,7 @@ from app.database import engine
 from app.models.user import Base
 from app.models.blog import Blog
 from app.models.notification import Notification
+from app.models.feedback import ChatbotFeedback
 
 from sqlalchemy import text
 Base.metadata.create_all(bind=engine)

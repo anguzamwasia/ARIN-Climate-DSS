@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 import ReactMarkdown from "react-markdown"
-import { Send, Plus, MessageSquare, Sparkles, Globe, FileText, Database, ArrowLeft, Trash2 } from "lucide-react"
+import { Send, Plus, MessageSquare, Sparkles, Globe, FileText, Database, ArrowLeft, Trash2, ThumbsUp, ThumbsDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
@@ -16,6 +16,7 @@ interface Message {
   role: "user" | "assistant"
   content: string
   sources?: { title: string; url: string }[]
+  rating?: number
   timestamp: string | Date
 }
 
@@ -162,6 +163,49 @@ export default function ChatbotPage() {
     }
   }
 
+  const handleFeedback = async (messageId: string, rating: 1 | -1) => {
+    if (!activeChatId) return
+
+    // Find the current message and its question
+    const activeMessages = chats.find(c => c.id === activeChatId)?.messages || []
+    const messageIndex = activeMessages.findIndex(m => m.id === messageId)
+    if (messageIndex === -1) return
+
+    const assistantMsg = activeMessages[messageIndex]
+    const userMsg = messageIndex > 0 ? activeMessages[messageIndex - 1] : null
+    const question = userMsg ? userMsg.content : ""
+
+    // Optimistically update frontend state so the clicked button highlights instantly
+    setChats(prev => prev.map(chat => {
+      if (chat.id === activeChatId) {
+        return {
+          ...chat,
+          messages: chat.messages.map(m => {
+            if (m.id === messageId) {
+              return { ...m, rating }
+            }
+            return m
+          })
+        }
+      }
+      return chat
+    }))
+
+    try {
+      await fetch(`${API_URL}/chat/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: question,
+          response: assistantMsg.content,
+          rating: rating
+        })
+      })
+    } catch (e) {
+      console.error("Failed to submit feedback", e)
+    }
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage() }
   }
@@ -286,23 +330,48 @@ export default function ChatbotPage() {
                               {message.content}
                             </ReactMarkdown>
                           </div>
-                          {message.sources && message.sources.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {message.sources.map((source, idx) => (
-                                source.url !== "#" ? (
-                                  <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-full text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer">
-                                    <FileText className="w-3 h-3 text-accent" />
-                                    <span className="truncate max-w-[200px]">{source.title}</span>
-                                  </a>
-                                ) : (
-                                  <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-border rounded-full text-xs font-medium text-muted-foreground cursor-default">
-                                    <FileText className="w-3 h-3 text-muted-foreground" />
-                                    <span className="truncate max-w-[200px]">{source.title}</span>
-                                  </span>
-                                )
-                              ))}
+                          {/* Sources & Feedback Row */}
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-secondary/40 pt-2.5">
+                            {message.sources && message.sources.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {message.sources.map((source, idx) => (
+                                  source.url !== "#" ? (
+                                    <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-full text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                                      <FileText className="w-3 h-3 text-accent" />
+                                      <span className="truncate max-w-[200px]">{source.title}</span>
+                                    </a>
+                                  ) : (
+                                    <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-border rounded-full text-xs font-medium text-muted-foreground cursor-default">
+                                      <FileText className="w-3 h-3 text-muted-foreground" />
+                                      <span className="truncate max-w-[200px]">{source.title}</span>
+                                    </span>
+                                  )
+                                ))}
+                              </div>
+                            ) : <div />}
+
+                            <div className="flex items-center gap-2 ml-auto">
+                              <span className="text-[10px] text-muted-foreground">Was this helpful?</span>
+                              <button
+                                onClick={() => handleFeedback(message.id, 1)}
+                                className={`p-1.5 rounded-lg transition-all hover:bg-secondary ${
+                                  message.rating === 1 ? 'text-accent bg-accent/10 scale-105' : 'text-muted-foreground hover:text-accent'
+                                }`}
+                                title="Thumbs Up"
+                              >
+                                <ThumbsUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleFeedback(message.id, -1)}
+                                className={`p-1.5 rounded-lg transition-all hover:bg-secondary ${
+                                  message.rating === -1 ? 'text-red-500 bg-red-50 scale-105' : 'text-muted-foreground hover:text-red-500'
+                                }`}
+                                title="Thumbs Down"
+                              >
+                                <ThumbsDown className="w-3.5 h-3.5" />
+                              </button>
                             </div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     )}

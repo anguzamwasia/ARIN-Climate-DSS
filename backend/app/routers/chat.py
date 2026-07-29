@@ -9,7 +9,8 @@ from app.models.document import Document
 
 router = APIRouter()
 
-from app.schemas.chat import ChatRequest, ChatResponse
+from app.schemas.chat import ChatRequest, ChatResponse, FeedbackRequest
+from app.models.feedback import ChatbotFeedback
 # Initialize chromadb client once at module level
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="climate_docs")
@@ -18,6 +19,30 @@ collection = chroma_client.get_or_create_collection(name="climate_docs")
 def chat_with_data(req: ChatRequest):
     if not req.question:
         return {"answer": "No message provided.", "sources": []}
+
+    # Fetch recent chatbot feedback to learn from it dynamically
+    feedback_instructions = ""
+    db = SessionLocal()
+    try:
+        # Get recent negative feedback (thumbs down) so the model avoids these styles/mistakes
+        neg_feedback = db.query(ChatbotFeedback).filter(ChatbotFeedback.rating == -1).order_by(ChatbotFeedback.created_at.desc()).limit(5).all()
+        if neg_feedback:
+            feedback_instructions += "\nCRITICAL FEEDBACK - INCORRECT RESPONSES TO AVOID:\n"
+            feedback_instructions += "Users found the following responses to be INCORRECT, UNHELPFUL, or MISLEADING. Avoid repeating these mistakes or assertions. Learn from these corrections:\n"
+            for f in neg_feedback:
+                feedback_instructions += f"--- User Question: {f.question}\n--- Your Rejected Response: {f.response}\n\n"
+
+        # Get recent positive feedback (thumbs up) so the model maintains these styles/strengths
+        pos_feedback = db.query(ChatbotFeedback).filter(ChatbotFeedback.rating == 1).order_by(ChatbotFeedback.created_at.desc()).limit(5).all()
+        if pos_feedback:
+            feedback_instructions += "\nCRITICAL FEEDBACK - CORRECT RESPONSES TO EMULATE:\n"
+            feedback_instructions += "Users found the following responses to be EXTREMELY HELPFUL and ACCURATE. Continue providing answers in this style/format:\n"
+            for f in pos_feedback:
+                feedback_instructions += f"--- User Question: {f.question}\n--- Your Approved Response: {f.response}\n\n"
+    except Exception as fe_err:
+        print(f"Failed to query chatbot feedback: {fe_err}")
+    finally:
+        db.close()
         
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -113,6 +138,8 @@ CRITICAL INSTRUCTIONS:
 6. BE HONEST ABOUT DATA ABSENCE. If the user asks about a specific type of data (e.g., 'field submissions' or 'Kobo surveys') and none of the provided context documents are actually field surveys, explicitly state that there are no field submissions currently available, rather than trying to pass off policy reports as field submissions.
 7. If the context doesn't contain the full specifics, seamlessly integrate your general knowledge about climate change in Africa.
 
+{feedback_instructions}
+
 Context:
 {context_text}
 
@@ -173,3 +200,29 @@ User Question: {req.question}
         err_trace = traceback.format_exc()
         print(f"OpenAI API Error: {e}\n{err_trace}")
         return {"answer": "Sorry, I ran into an error trying to process that with the AI model. (The API might be experiencing heavy load. Please wait 10 seconds and try again).", "sources": []}
+
+@router.post("/chat/feedback")
+def chatbot_feedback(req: FeedbackRequest):
+    db = SessionLocal()
+    try:
+        # Check if feedback for this exact Q&A and rating already exists
+        existing = db.query(ChatbotFeedback).filter(
+            ChatbotFeedback.question == req.question,
+            ChatbotFeedback.response == req.response,
+            ChatbotFeedback.rating == req.rating
+        ).first()
+        
+        if not existing:
+            new_feedback = ChatbotFeedback(
+                question=req.question,
+                response=req.response,
+                rating=req.rating
+            )
+            db.add(new_feedback)
+            db.commit()
+        return {"status": "success", "message": "Feedback submitted successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()

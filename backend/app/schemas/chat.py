@@ -6,3 +6,8 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str] = []
+
+class FeedbackRequest(BaseModel):
+    question: str
+    response: str
+    rating: int
