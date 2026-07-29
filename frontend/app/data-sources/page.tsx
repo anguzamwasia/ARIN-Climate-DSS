@@ -183,10 +183,12 @@ function DataSourcesContent() {
           {activeSource === "National Reports" && (
             <div className="mb-12 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start bg-white p-6 rounded-2xl border border-border shadow-sm">
               <div className="col-span-1">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">Explore by County</h2>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  Dive deep into national climate strategies, localized policies, and evidence-informed data from across Kenya. 
-                  Hover over the map to view data availability, and click on any highlighted county to instantly filter the reports below.
+                <h2 className="text-2xl font-semibold text-foreground mb-4">Explore Localized County Reports</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+                  Delve into localized climate policy frameworks, County Integrated Development Plans (CIDPs), county-level environmental assessments, and targeted adaptation strategies across Kenya. By organizing data at the county level, this module bridges the gap between high-level national policy agendas and actual grassroots implementation, allowing county-level policy officers and community coordinators to access localized research relevant to their specific administrative zones.
+                </p>
+                <p className="text-xs text-muted-foreground italic">
+                  <strong>Interactive Guidance:</strong> Hover over counties to see report densities, and click on any highlighted county on the map of Kenya to instantly load all associated local policy documentation and localized climate research below.
                 </p>
               </div>
               <div className="col-span-1 lg:col-span-2 z-0">
@@ -207,10 +209,12 @@ function DataSourcesContent() {
           {activeSource === "Regional Data" && (
             <div className="mb-12 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start bg-white p-6 rounded-2xl border border-border shadow-sm">
               <div className="col-span-1">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">African Perspective</h2>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  Explore global datasets, multilateral institution reports, and regional frameworks tailored to the African continent.
-                  Select a specific country on the map to filter global datasets relevant to that region.
+                <h2 className="text-2xl font-semibold text-foreground mb-4">African Perspective & Regional Datasets</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+                  Explore regional policy frameworks, Nationally Determined Contributions (NDCs), UNFCCC national communication reports, and multilateral climate assessments gathered from global repositories (such as the World Bank and UNFCCC portals) mapped directly to their respective sovereign nations. This interface enables researchers and policy experts to evaluate cross-border environmental adaptation strategies, compare transboundary carbon commitments, and query continental-scale climate action policies.
+                </p>
+                <p className="text-xs text-muted-foreground italic">
+                  <strong>Interactive Guidance:</strong> Click on any highlighted country on the African map to instantly filter and review the active policy documents, climate targets, and international reports registered for that specific nation.
                 </p>
               </div>
               <div className="col-span-1 lg:col-span-2">
