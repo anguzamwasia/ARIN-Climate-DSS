@@ -32,7 +32,6 @@ const features = [
       "Community Insights",
       "Other sources",
     ],
-    highlight: "Data from African countries",
     link: "/data-sources",
     linkText: "Browse Data Sources",
     visual: (
@@ -255,12 +254,14 @@ export function FeaturesSection() {
                 </ul>
 
                 {/* Highlight */}
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 text-primary text-sm font-medium mb-4">
-                  <span className="w-2 h-2 rounded-full bg-accent" />
-                  {feature.highlight === "Data from African countries" && countryCount !== null 
-                    ? `Data from ${countryCount} African countries`
-                    : feature.highlight}
-                </div>
+                {feature.highlight && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 text-primary text-sm font-medium mb-4">
+                    <span className="w-2 h-2 rounded-full bg-accent" />
+                    {feature.highlight === "Data from African countries" && countryCount !== null 
+                      ? `Data from ${countryCount} African countries`
+                      : feature.highlight}
+                  </div>
+                )}
 
                 {/* CTA Link */}
                 {feature.link && (

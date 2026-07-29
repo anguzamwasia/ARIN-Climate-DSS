@@ -113,6 +113,7 @@ export default function UnifiedAdminPortal() {
 
   // --- MEDIA / DOC STATE MANAGEMENT ---
   const [uploadingFile, setUploadingFile] = useState<File | null>(null)
+  const [docDescription, setDocDescription] = useState("")
   const [isUploading, setIsUploading] = useState(false)
   const [uploadMessage, setUploadMessage] = useState("")
   const [localHistory, setLocalHistory] = useState<LocalMediaLog[]>([])
@@ -296,6 +297,9 @@ export default function UnifiedAdminPortal() {
 
     const formData = new FormData()
     formData.append("file", uploadingFile)
+    if (docDescription.trim()) {
+      formData.append("description", docDescription)
+    }
 
     try {
       const response = await fetch(`${API_URL}/api/v1/admin/documents/upload`, {
@@ -322,6 +326,7 @@ export default function UnifiedAdminPortal() {
 
       setUploadMessage(`✅ Research paper received and stored successfully!`)
       setUploadingFile(null)
+      setDocDescription("")
 
     } catch (err: any) {
       setUploadMessage(`❌ Document ingest failure: ${err.message || err}`)
@@ -335,6 +340,7 @@ export default function UnifiedAdminPortal() {
     setActiveTab(tab)
     setUploadingFile(null)
     setUploadMessage("")
+    setDocDescription("")
   }
 
   return (
@@ -601,10 +607,24 @@ export default function UnifiedAdminPortal() {
                       </label>
 
                       {uploadingFile && (
-                        <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-xs">
-                          <p className="font-bold text-gray-900 truncate">Selected File:</p>
-                          <p className="text-gray-600 truncate mt-0.5">{uploadingFile.name}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{(uploadingFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-xs space-y-3">
+                          <div>
+                            <p className="font-bold text-gray-900 truncate">Selected File:</p>
+                            <p className="text-gray-600 truncate mt-0.5">{uploadingFile.name}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">{(uploadingFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-700 block">Document Description</label>
+                            <textarea
+                              value={docDescription}
+                              onChange={(e) => setDocDescription(e.target.value)}
+                              placeholder="Enter a brief 1-2 sentence description explaining this document..."
+                              rows={3}
+                              className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              required
+                            />
+                          </div>
                         </div>
                       )}
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
@@ -94,7 +94,11 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
     return doc
 
 @router.post("/api/v1/admin/documents/upload")
-async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_document(
+    file: UploadFile = File(...),
+    description: str = Form(None),
+    db: Session = Depends(get_db)
+):
     # Define acceptable research paper formats
     allowed_extensions = {".pdf", ".docx", ".csv", ".xlsx"}
     ext = os.path.splitext(file.filename)[1].lower()
@@ -144,7 +148,8 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
             file_url=safe_filename,
             scraped_at=datetime.utcnow(),
             content_text=extracted_text,
-            type="Research Paper"
+            type="Research Paper",
+            body=description
         )
         db.add(new_doc)
         db.commit()
