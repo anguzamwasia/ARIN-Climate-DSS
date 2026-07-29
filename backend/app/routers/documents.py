@@ -7,6 +7,9 @@ import uuid
 from app.database import get_db
 from app.schemas.document import DocumentOut
 from app.models.document import Document
+from app.models.user import User
+from app.auth import get_current_admin
+import re
 
 router = APIRouter()
 
@@ -58,7 +61,7 @@ def get_global_stats(db: Session = Depends(get_db)):
     }
 
 @router.get("/api/v1/admin/content/stats")
-def get_admin_content_stats(db: Session = Depends(get_db)):
+def get_admin_content_stats(db: Session = Depends(get_db), admin_user: User = Depends(get_current_admin)):
     research_papers = db.query(func.count(Document.id)).filter(Document.source == 'ARIN').scalar() or 0
     media_processed = db.query(func.count(Document.id)).filter(Document.source == 'WHISPER').scalar() or 0
     
@@ -97,7 +100,8 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
 async def upload_document(
     file: UploadFile = File(...),
     description: str = Form(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_current_admin)
 ):
     # Define acceptable research paper formats
     allowed_extensions = {".pdf", ".docx", ".csv", ".xlsx"}
@@ -110,8 +114,13 @@ async def upload_document(
     upload_dir = "uploads/documents"
     os.makedirs(upload_dir, exist_ok=True)
     
-    # Use the original filename instead of UUID
-    safe_filename = file.filename
+    # Sanitize the filename to prevent directory traversal
+    filename = os.path.basename(file.filename)
+    safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+    if not safe_filename or safe_filename.startswith(".."):
+        import uuid
+        safe_filename = f"upload_{uuid.uuid4().hex}{ext}"
+        
     file_path = os.path.join(upload_dir, safe_filename)
 
     try:

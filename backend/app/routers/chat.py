@@ -186,13 +186,20 @@ User Question: {req.question}
             except Exception as learn_err:
                 print(f"Auto-learning embedding error: {learn_err}")
         
-        # Filter sources to only include those actually cited in the LLM's answer
+        # Filter sources to only include those actually cited in the LLM's answer and are downloadable
         used_sources = []
+        seen_normalized = set()
         for s in source_titles:
+            url = s.get("url") or "#"
+            if url == "#" or not url:
+                continue
             # Also check if part of the title is in the answer in case LLM slightly altered it
             title_words = s["title"].split()
             if s["title"] in answer_content or (len(title_words) > 3 and " ".join(title_words[:4]) in answer_content):
-                used_sources.append(s)
+                norm = re.sub(r'[\s_\-]+', ' ', s["title"].lower()).strip()
+                if norm not in seen_normalized:
+                    seen_normalized.add(norm)
+                    used_sources.append(s)
                 
         return {"answer": answer_content, "sources": used_sources}
     except Exception as e:

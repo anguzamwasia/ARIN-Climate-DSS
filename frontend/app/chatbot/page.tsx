@@ -332,44 +332,39 @@ export default function ChatbotPage() {
                           </div>
                           {/* Sources & Feedback Row */}
                           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-secondary/40 pt-2.5">
-                            {message.sources && message.sources.length > 0 ? (
+                            {message.sources && message.sources.filter(s => s.url !== "#").length > 0 ? (
                               <div className="flex flex-wrap gap-2">
-                                {message.sources.map((source, idx) => (
-                                  source.url !== "#" ? (
-                                    <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-full text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer">
-                                      <FileText className="w-3 h-3 text-accent" />
-                                      <span className="truncate max-w-[200px]">{source.title}</span>
-                                    </a>
-                                  ) : (
-                                    <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-border rounded-full text-xs font-medium text-muted-foreground cursor-default">
-                                      <FileText className="w-3 h-3 text-muted-foreground" />
-                                      <span className="truncate max-w-[200px]">{source.title}</span>
-                                    </span>
-                                  )
+                                {message.sources.filter(s => s.url !== "#").map((source, idx) => (
+                                  <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-full text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+                                    <FileText className="w-3 h-3 text-accent" />
+                                    <span className="truncate max-w-[200px]">{source.title}</span>
+                                  </a>
                                 ))}
                               </div>
                             ) : <div />}
 
                             <div className="flex items-center gap-2 ml-auto">
-                              <span className="text-[10px] text-muted-foreground">Was this helpful?</span>
-                              <button
-                                onClick={() => handleFeedback(message.id, 1)}
-                                className={`p-1.5 rounded-lg transition-all hover:bg-secondary ${
-                                  message.rating === 1 ? 'text-accent bg-accent/10 scale-105' : 'text-muted-foreground hover:text-accent'
-                                }`}
-                                title="Thumbs Up"
-                              >
-                                <ThumbsUp className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleFeedback(message.id, -1)}
-                                className={`p-1.5 rounded-lg transition-all hover:bg-secondary ${
-                                  message.rating === -1 ? 'text-red-500 bg-red-50 scale-105' : 'text-muted-foreground hover:text-red-500'
-                                }`}
-                                title="Thumbs Down"
-                              >
-                                <ThumbsDown className="w-3.5 h-3.5" />
-                              </button>
+                              {message.rating ? (
+                                <span className="text-[10px] text-accent font-medium bg-accent/5 px-2.5 py-1 rounded-full border border-accent/20">Feedback received!</span>
+                              ) : (
+                                <>
+                                  <span className="text-[10px] text-muted-foreground">Was this helpful?</span>
+                                  <button
+                                    onClick={() => handleFeedback(message.id, 1)}
+                                    className="p-1.5 rounded-lg transition-all text-muted-foreground hover:text-accent hover:bg-secondary"
+                                    title="Thumbs Up"
+                                  >
+                                    <ThumbsUp className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleFeedback(message.id, -1)}
+                                    className="p-1.5 rounded-lg transition-all text-muted-foreground hover:text-red-500 hover:bg-secondary"
+                                    title="Thumbs Down"
+                                  >
+                                    <ThumbsDown className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>

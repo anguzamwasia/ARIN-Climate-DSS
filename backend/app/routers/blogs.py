@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends
+from app.auth import get_current_admin
+from app.models.user import User
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
@@ -186,7 +188,7 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
     return {"message": "Blog draft updated" if new_status == "draft" else "Blog updated and submitted for review"}
 
 @router.patch("/blogs/{blog_id}/approve")
-def approve_blog(blog_id: int, db: Session = Depends(get_db)):
+def approve_blog(blog_id: int, db: Session = Depends(get_db), admin_user: User = Depends(get_current_admin)):
     row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
     if not row:
         from fastapi import HTTPException
@@ -250,7 +252,7 @@ def approve_blog(blog_id: int, db: Session = Depends(get_db)):
     return {"message": "Blog approved and added to AI Knowledge Base"}
 
 @router.patch("/blogs/{blog_id}/reject")
-def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db)):
+def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db), admin_user: User = Depends(get_current_admin)):
     row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
     if not row:
         from fastapi import HTTPException
@@ -304,7 +306,7 @@ def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db))
     return {"message": "Blog rejected"}
 
 @router.delete("/blogs/{blog_id}")
-def delete_blog(blog_id: int, db: Session = Depends(get_db)):
+def delete_blog(blog_id: int, db: Session = Depends(get_db), admin_user: User = Depends(get_current_admin)):
     db.execute(text("DELETE FROM blogs WHERE id = :id"), {"id": blog_id})
     db.commit()
     return {"message": "Blog deleted"}

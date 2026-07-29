@@ -8,7 +8,7 @@ import re
 
 from app.database import get_db
 from app.models.user import User
-from app.auth import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
+from app.auth import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user, get_current_admin
 
 router = APIRouter()
 
@@ -32,6 +32,12 @@ def is_valid_email(email: str) -> bool:
 
 @router.post("/api/v1/auth/signup", response_model=Token)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
+    if user.email not in ALLOWED_EMAILS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Signup restricted. Please contact an administrator."
+        )
+
     if not is_valid_email(user.email):
         raise HTTPException(status_code=400, detail="The email format is invalid")
         
@@ -87,7 +93,7 @@ def get_me(current_user: User = Depends(get_current_user)):
     return {"name": current_user.name, "email": current_user.email}
 
 @router.get("/api/v1/admin/users/stats")
-def get_user_stats(db: Session = Depends(get_db)):
+def get_user_stats(db: Session = Depends(get_db), admin_user: User = Depends(get_current_admin)):
     total_users = db.query(User).count()
     active_users = db.query(User).filter(User.login_count > 0).count()
     return {"total_users": total_users, "active_users": active_users}
