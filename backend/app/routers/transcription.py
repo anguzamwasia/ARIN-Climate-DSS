@@ -1,14 +1,17 @@
 import os
 import shutil
+import uuid
 import httpx
 import asyncio
 import logging
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, status
+from fastapi import APIRouter, Depends, Header, HTTPException, BackgroundTasks, UploadFile, File, status
 from pydantic import BaseModel, Field
 from sqlalchemy import text
+from app.auth import require_admin
 from app.database import SessionLocal
+from app.models.user import User
 from app.services.transcriber import transcribe_community_audio, UPLOAD_DIR
 
 logger = logging.getLogger("backend.app.routers.transcription")
@@ -131,8 +134,18 @@ def process_webhook_speech_pipeline(media_url: str, filename: str, submission_id
         logger.critical(f"Pipeline crash for submission {submission_id}: {e}")
 
 
+def verify_kobo_webhook(x_webhook_secret: Optional[str] = Header(default=None)):
+    # KoboToolbox REST Services can send a custom header on every webhook call
+    # (configured in the Kobo project's REST Services settings). This is not a
+    # user JWT -- Kobo is a machine caller -- but an unauthenticated receiver
+    # otherwise lets anyone queue arbitrary "audio" downloads/transcriptions.
+    expected = os.getenv("KOBO_WEBHOOK_SECRET")
+    if expected and x_webhook_secret != expected:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook secret")
+
+
 @router.post("/ingest/kobo-receiver", status_code=status.HTTP_202_ACCEPTED)
-async def receive_kobo_form_submission(payload: KoboWebhookPayload, background_tasks: BackgroundTasks):
+async def receive_kobo_form_submission(payload: KoboWebhookPayload, background_tasks: BackgroundTasks, _verified: None = Depends(verify_kobo_webhook)):
     target_media_url = None
     target_filename = None
     for attachment in payload.attachments:
@@ -160,13 +173,17 @@ def process_admin_media_async(filename: str):
 
 
 @router.post("/admin/media/upload", status_code=status.HTTP_202_ACCEPTED)
-async def admin_upload_media(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
-    filename = file.filename
+async def admin_upload_media(background_tasks: BackgroundTasks, file: UploadFile = File(...), _admin: User = Depends(require_admin)):
+    filename = file.filename or ""
     if not filename.lower().endswith((".mp3", ".mp4", ".wav", ".m4a")):
         raise HTTPException(status_code=400, detail="Unsupported media format")
     if not os.path.exists(UPLOAD_DIR):
         os.makedirs(UPLOAD_DIR, exist_ok=True)
-    sanitized_filename = f"admin_{int(datetime.utcnow().timestamp())}_{filename.replace(' ', '_')}"
+    ext = os.path.splitext(filename)[1].lower()
+    # Server-generated filename -- never trust the client-supplied name for a
+    # filesystem path (same path-traversal class of issue as the document
+    # upload route).
+    sanitized_filename = f"admin_{uuid.uuid4().hex}{ext}"
     destination_path = os.path.join(UPLOAD_DIR, sanitized_filename)
     try:
         with open(destination_path, "wb") as buf:

@@ -8,6 +8,7 @@ import {
   Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines, BookOpen, Edit
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { authFetch } from "@/lib/api"
 import dynamic from "next/dynamic"
 import "react-quill-new/dist/quill.snow.css"
 
@@ -62,7 +63,7 @@ export default function UnifiedAdminPortal() {
 
   const fetchUserStats = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/admin/users/stats`)
+      const res = await authFetch(`${API_URL}/api/v1/admin/users/stats`)
       if (res.ok) {
         const data = await res.json()
         setUserStats(data)
@@ -72,7 +73,7 @@ export default function UnifiedAdminPortal() {
 
   const fetchContentStats = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/admin/content/stats`)
+      const res = await authFetch(`${API_URL}/api/v1/admin/content/stats`)
       if (res.ok) {
         const data = await res.json()
         setContentStats(data)
@@ -147,7 +148,7 @@ export default function UnifiedAdminPortal() {
   const handleApprove = async (id: string) => {
     setIsProcessingBlog(true)
     try {
-      const res = await fetch(`${API_URL}/blogs/${id}/approve`, { method: "PATCH" })
+      const res = await authFetch(`${API_URL}/blogs/${id}/approve`, { method: "PATCH" })
       if (res.ok) {
         await fetchBlogs()
         setBlogActionMessage("✅ Verified successfully!")
@@ -162,7 +163,7 @@ export default function UnifiedAdminPortal() {
     setIsProcessingBlog(true)
     setRejectionError(null)
     try {
-      const res = await fetch(`${API_URL}/blogs/${selectedBlog.id}/reject`, {
+      const res = await authFetch(`${API_URL}/blogs/${selectedBlog.id}/reject`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ feedback: rejectionReason.trim() })
@@ -204,7 +205,7 @@ export default function UnifiedAdminPortal() {
         edited_by_admin: true
       }
 
-      const res = await fetch(`${API_URL}/blogs/${blogToEdit.id}`, { 
+      const res = await authFetch(`${API_URL}/blogs/${blogToEdit.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -248,7 +249,7 @@ export default function UnifiedAdminPortal() {
 
     try {
       // Connects directly to our backend endpoint route layer
-      const response = await fetch(`${API_URL}/api/v1/admin/media/upload`, {
+      const response = await authFetch(`${API_URL}/api/v1/admin/media/upload`, {
         method: "POST",
         body: formData,
       })
@@ -302,7 +303,7 @@ export default function UnifiedAdminPortal() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/v1/admin/documents/upload`, {
+      const response = await authFetch(`${API_URL}/api/v1/admin/documents/upload`, {
         method: "POST",
         body: formData,
       })

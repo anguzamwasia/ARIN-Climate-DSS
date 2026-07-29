@@ -141,8 +141,13 @@ User Question: {req.question}
         answer_content = response.choices[0].message.content
         
         # Auto-Learn / Dynamic Retraining Memory:
-        # Embed user question & AI synthesized insight into ChromaDB so the chatbot continuously learns from past interactions
-        if answer_content and len(answer_content) > 50 and "I don't have" not in answer_content:
+        # Embed user question & AI synthesized insight into ChromaDB so the chatbot continuously learns from past interactions.
+        # Gated by RAG_AUTO_LEARN (default on) so this self-reinforcing write-back can be
+        # switched off without a code change if moderation of embedded content is needed --
+        # e.g. now that document upload requires admin auth (see documents.py), this is the
+        # remaining unreviewed path into the knowledge base.
+        rag_auto_learn_enabled = os.getenv("RAG_AUTO_LEARN", "true").lower() != "false"
+        if rag_auto_learn_enabled and answer_content and len(answer_content) > 50 and "I don't have" not in answer_content:
             try:
                 import uuid
                 qa_id = f"qa_{uuid.uuid4().hex[:8]}"

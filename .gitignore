@@ -23,3 +23,14 @@ backend/uploads/
 *.db
 *.zip
 *.sql
+backend/backup.json
+
+# throwaway debug/check scripts -- moved out of the app roots but kept
+# locally rather than deleted; see git history if you need the old versions
+frontend/debug/
+scraper/debug/
+
+# scraper debug dumps: raw HTML/screenshots saved for local troubleshooting
+# when a spider fails to find what it expects (not curated fixtures)
+scraper/*.html
+scraper/*.png

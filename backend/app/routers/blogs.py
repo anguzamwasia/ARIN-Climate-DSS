@@ -4,7 +4,9 @@ from sqlalchemy import text
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from app.auth import get_current_user, require_admin
 from app.database import get_db
+from app.models.user import User
 
 router = APIRouter()
 
@@ -51,7 +53,7 @@ def get_blog(blog_id: int, db: Session = Depends(get_db)):
     return dict(row)
 
 @router.post("/blogs")
-def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
+def submit_blog(blog: BlogIn, db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
     # Duplication check
     existing = db.execute(text("SELECT id FROM blogs WHERE title = :title"), {"title": blog.title}).mappings().first()
     if existing:
@@ -91,7 +93,7 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
     }
 
 @router.put("/blogs/{blog_id}")
-def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
+def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
     # Duplication check
     existing = db.execute(text("SELECT id FROM blogs WHERE title = :title AND id != :id"), {"title": blog.title, "id": blog_id}).mappings().first()
     if existing:
@@ -186,7 +188,7 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
     return {"message": "Blog draft updated" if new_status == "draft" else "Blog updated and submitted for review"}
 
 @router.patch("/blogs/{blog_id}/approve")
-def approve_blog(blog_id: int, db: Session = Depends(get_db)):
+def approve_blog(blog_id: int, db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
     row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
     if not row:
         from fastapi import HTTPException
@@ -250,7 +252,7 @@ def approve_blog(blog_id: int, db: Session = Depends(get_db)):
     return {"message": "Blog approved and added to AI Knowledge Base"}
 
 @router.patch("/blogs/{blog_id}/reject")
-def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db)):
+def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
     row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
     if not row:
         from fastapi import HTTPException
@@ -304,7 +306,7 @@ def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db))
     return {"message": "Blog rejected"}
 
 @router.delete("/blogs/{blog_id}")
-def delete_blog(blog_id: int, db: Session = Depends(get_db)):
+def delete_blog(blog_id: int, db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
     db.execute(text("DELETE FROM blogs WHERE id = :id"), {"id": blog_id})
     db.commit()
     return {"message": "Blog deleted"}

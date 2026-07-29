@@ -229,8 +229,8 @@ choco install ffmpeg
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Arin-Network/data-Sys.git
-cd data-Sys
+git clone https://github.com/anguzamwasia/ARIN-Climate-DSS.git
+cd ARIN-Climate-DSS
 ```
 
 ### 2. Set Up Environment Variables
@@ -356,38 +356,58 @@ country: Kenya
 
 ### Core Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/analytics/overview` | Continent-level KPI summary |
-| GET | `/analytics/country/{code}` | National report (vulnerability, docs, submissions) |
-| GET | `/analytics/heatmap` | GeoJSON for Leaflet heatmap |
-| GET | `/analytics/timeseries` | Climate time-series data |
-| POST | `/chat` | RAG-powered chatbot query |
-| POST | `/blogs/generate` | Generate blog draft with RAG |
-| PATCH | `/blogs/{id}/approve` | Approve blog (human-in-loop) |
-| POST | `/media/upload` | Upload audio/video for transcription |
-| GET | `/media/{id}/report` | Get structured transcript report |
-| POST | `/kobo/webhook` | Receive KoboCollect submissions |
+This table lists the routes actually registered in `backend/app/main.py` (a prior
+version of this README documented several endpoints — `/blogs/generate`,
+`/media/upload`, `/media/{id}/report`, `/kobo/webhook` — that never existed in
+the code; those have been corrected below). "Auth" means the route requires a
+`Bearer` token from `/api/v1/auth/login`; "Admin" means the token's user must
+have `role = "admin"`.
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/health` | - | Health check |
+| GET | `/analytics/overview` | - | Continent-level KPI summary (real counts; see note below) |
+| GET | `/analytics/country/{code}` | - | Per-country document/submission counts |
+| GET | `/analytics/heatmap` | - | GeoJSON-style feature collection for the map |
+| GET | `/analytics/timeseries` | - | Time-series climate data (currently empty, see note) |
+| GET | `/documents` | - | List ingested documents, filterable by source/country/type |
+| GET | `/documents/{id}` | - | Fetch a single document |
+| POST | `/api/v1/admin/documents/upload` | Admin | Upload a research paper (PDF/DOCX/CSV/XLSX) |
+| GET | `/api/v1/admin/content/stats` | Admin | Research paper / media processed counts |
+| POST | `/chat` | - | RAG-powered chatbot query |
+| GET | `/blogs` | - | List blog submissions |
+| POST | `/blogs` | Auth | Submit a blog draft/story |
+| PUT | `/blogs/{id}` | Auth | Update a blog submission |
+| PATCH | `/blogs/{id}/approve` | Admin | Approve blog (human-in-loop) |
+| PATCH | `/blogs/{id}/reject` | Admin | Reject blog with feedback |
+| DELETE | `/blogs/{id}` | Admin | Delete a blog submission |
+| POST | `/api/v1/admin/media/upload` | Admin | Upload audio/video for Whisper transcription |
+| POST | `/api/v1/ingest/kobo-receiver` | Webhook secret | Receive KoboCollect submissions |
+| POST | `/api/v1/auth/signup` | - (whitelist-gated) | Create an account (email must be in `ALLOWED_EMAILS`) |
+| POST | `/api/v1/auth/login` | - | Log in, returns a JWT |
+| GET | `/api/v1/auth/me` | Auth | Current user's profile |
+| GET | `/api/v1/admin/users/stats` | Admin | User/active-user counts |
+| GET | `/notifications` | Auth | Current user's notifications |
+| POST | `/notifications/{id}/read` | Auth | Mark a notification read |
+| POST | `/api/v1/public/contact` | - | Public contact form |
+
+> **Data honesty note:** `/analytics/country/{code}` and `/analytics/timeseries`
+> return real document/submission counts, but `avg_temperature_rise`,
+> `drought_index`, `flood_risk`, and `population_affected` are placeholder
+> zero/"unknown" values, not measurements. The scrapers ingest policy PDFs and
+> Kobo field-survey metadata — there is no climate-indicator data source wired
+> into the pipeline yet (e.g. the World Bank Climate Change Knowledge Portal
+> API). Wiring one in is the remaining piece of work needed before the
+> dashboard's temperature/drought/flood-risk figures reflect anything real.
 
 ### Example: Continent Overview Response
 
 ```json
 {
   "total_documents": 78,
-  "total_submissions": 50,
-  "total_audio_hours": 12.5,
-  "avg_vulnerability": 0.68,
-  "countries": [
-    {
-      "country_code": "KE",
-      "country_name": "Kenya",
-      "vulnerability_index": 0.72,
-      "doc_count": 56,
-      "submission_count": 36,
-      "temperature_anomaly": 1.42
-    }
-  ]
+  "total_media": 12,
+  "total_blogs": 6,
+  "countries_covered": 28
 }
 ```
 
@@ -488,12 +508,16 @@ GET /media/{id}/report
 ```bash
 cd backend
 pytest app/tests/ -v --cov=app --cov-report=html
-
-# Expected output: 70%+ coverage
-# ========== test session starts ==========
-# tests/test_all.py ✓✓✓✓✓✓✓✓✓✓ 10 passed
-# Coverage: 78%
 ```
+
+`app/tests/` currently covers the auth/admin-gating behavior added in the
+security fixes (see `test_admin_auth.py`) plus the pre-existing pipeline
+smoke test. It is not yet a comprehensive suite, and there is no enforced
+coverage gate in CI (`.github/workflows/ci.yml` runs pytest but doesn't fail
+the build below a threshold) -- the "70%+ coverage" figure previously claimed
+here was aspirational, not measured, so it has been removed rather than left
+as an unverified number. Run the command above locally to see the real,
+current coverage.
 
 ### Run Frontend Tests
 
@@ -596,11 +620,15 @@ vercel --prod
 
 ### Security
 
--  API keys stored in `.env` (gitignored)
--  HTTPS in production (via ARIN infrastructure)
--  Input sanitization for all endpoints
--  CORS configured for trusted origins only
--  Rate limiting (100 requests/minute)
+-  API keys stored in `.env` (gitignored) -- see `backend/.env.example`
+-  CORS restricted to `ALLOWED_ORIGINS` (see `.env.example`), not `*`
+-  Admin/write endpoints require a JWT with `role = "admin"` (see `app/auth.py::require_admin`)
+-  Signup restricted to `ALLOWED_EMAILS`
+-  Uploaded files are stored under a server-generated name (no client-controlled paths)
+-  HTTPS in production (via ARIN infrastructure) -- not something this codebase enforces itself
+-  ⚠️ Rate limiting is **not implemented**. This was listed here previously but
+   there is no rate-limiting middleware or dependency anywhere in the code.
+   Worth adding (e.g. `slowapi`) before any public deployment.
 
 ---
 
@@ -671,7 +699,7 @@ Executive Director, ARIN
 -  Email: [jatela@arinafrica.org](mailto:jatela@arinafrica.org)
 
 **Repository**  
-[https://github.com/Arin-Network/data-Sys](https://github.com/Arin-Network/data-Sys)
+[https://github.com/anguzamwasia/ARIN-Climate-DSS](https://github.com/anguzamwasia/ARIN-Climate-DSS)
 
 ---
 
@@ -698,4 +726,4 @@ Unauthorized copying, distribution, or use of this software is strictly prohibit
   
 **Built with Love for a climate-resilient Africa**
 
-[Report Bug](https://github.com/Arin-Network/data-Sys/issues) · [Request Feature](mailto:anguzacynthia@gmail.com)
+[Report Bug](https://github.com/anguzamwasia/ARIN-Climate-DSS/issues) · [Request Feature](mailto:anguzacynthia@gmail.com)

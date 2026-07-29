@@ -4,7 +4,9 @@ from sqlalchemy import func
 from typing import Optional
 import os
 import uuid
+from app.auth import require_admin
 from app.database import get_db
+from app.models.user import User
 from app.schemas.document import DocumentOut
 from app.models.document import Document
 
@@ -58,7 +60,7 @@ def get_global_stats(db: Session = Depends(get_db)):
     }
 
 @router.get("/api/v1/admin/content/stats")
-def get_admin_content_stats(db: Session = Depends(get_db)):
+def get_admin_content_stats(db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
     research_papers = db.query(func.count(Document.id)).filter(Document.source == 'ARIN').scalar() or 0
     media_processed = db.query(func.count(Document.id)).filter(Document.source == 'WHISPER').scalar() or 0
     
@@ -97,21 +99,24 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
 async def upload_document(
     file: UploadFile = File(...),
     description: str = Form(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
     # Define acceptable research paper formats
     allowed_extensions = {".pdf", ".docx", ".csv", ".xlsx"}
-    ext = os.path.splitext(file.filename)[1].lower()
-    
+    ext = os.path.splitext(file.filename or "")[1].lower()
+
     if ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail=f"Unsupported file format {ext}. Allowed: pdf, docx, csv, xlsx")
 
     # Secure storage directory
     upload_dir = "uploads/documents"
     os.makedirs(upload_dir, exist_ok=True)
-    
-    # Use the original filename instead of UUID
-    safe_filename = file.filename
+
+    # Server-generated filename: the client-supplied name is never trusted
+    # for a filesystem path (it previously allowed path traversal / overwrite
+    # via crafted filenames like "../../..").
+    safe_filename = f"{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(upload_dir, safe_filename)
 
     try:

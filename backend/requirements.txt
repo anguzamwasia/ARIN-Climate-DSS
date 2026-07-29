@@ -3,6 +3,7 @@ uvicorn
 psycopg2-binary
 sqlalchemy
 pydantic
+pydantic-settings
 python-dotenv
 httpx
 python-multipart
@@ -19,11 +20,15 @@ openai
 langchain
 langchain-openai
 tiktoken
-redis
-celery
 python-jose[cryptography]
 passlib[bcrypt]
 email-validator
 aiofiles
 requests
 bcrypt
+alembic
+
+# dev/test only
+pytest
+pytest-cov
+pytest-asyncio

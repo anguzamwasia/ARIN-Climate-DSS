@@ -17,7 +17,7 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
       if (!user) {
         // Redirect to signin, optionally pass the return URL
         router.push(`/signin?redirect=${encodeURIComponent(pathname)}`)
-      } else if (adminOnly && user.email !== "admin@arin-africa.org") {
+      } else if (adminOnly && user.role !== "admin") {
         // Redirect non-admins
         router.push("/")
       } else {

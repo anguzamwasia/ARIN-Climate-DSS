@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
+import { authFetch } from "@/lib/api"
 import { Header } from "@/components/header"
 import dynamic from "next/dynamic"
 import "react-quill-new/dist/quill.snow.css"
@@ -193,7 +194,7 @@ export default function BlogSubmitPage() {
         ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs/${editingBlogId}`
         : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs`
         
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: isEditing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

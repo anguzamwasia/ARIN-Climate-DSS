@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X, ChevronDown, Database, Bot, FileText, UserCircle, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
+import { authFetch, API_BASE } from "@/lib/api"
 
 const navItems = [
   { label: "Home", href: "/" },
@@ -52,7 +53,7 @@ export function Header() {
     if (!user?.email) return
     const fetchNotifs = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/notifications?email=${user.email}`)
+        const res = await authFetch(`${API_BASE}/notifications`)
         if (res.ok) {
           setNotifications(await res.json())
         }
@@ -69,7 +70,7 @@ export function Header() {
 
   const markRead = async (id: number) => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/notifications/${id}/read`, { method: "POST" })
+      await authFetch(`${API_BASE}/notifications/${id}/read`, { method: "POST" })
       setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n))
     } catch (e) {
       console.error(e)
