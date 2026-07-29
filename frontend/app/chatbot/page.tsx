@@ -341,6 +341,7 @@ export default function ChatbotPage() {
           </div>
         </main>
       </div>
+      </div>
     </ProtectedRoute>
   )
 }
