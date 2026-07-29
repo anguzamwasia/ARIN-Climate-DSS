@@ -347,24 +347,26 @@ export default function ChatbotPage() {
                               {message.rating ? (
                                 <span className="text-[10px] text-accent font-medium bg-accent/5 px-2.5 py-1 rounded-full border border-accent/20">Feedback received!</span>
                               ) : (
-                                <>
-                                  <span className="text-[10px] text-muted-foreground">Was this helpful?</span>
-                                  <button
-                                    onClick={() => handleFeedback(message.id, 1)}
-                                    className="p-1.5 rounded-lg transition-all text-muted-foreground hover:text-accent hover:bg-secondary"
-                                    title="Thumbs Up"
-                                  >
-                                    <ThumbsUp className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleFeedback(message.id, -1)}
-                                    className="p-1.5 rounded-lg transition-all text-muted-foreground hover:text-red-500 hover:bg-secondary"
-                                    title="Thumbs Down"
-                                  >
-                                    <ThumbsDown className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
+                                <span className="text-[10px] text-muted-foreground">Was this helpful?</span>
                               )}
+                              <button
+                                onClick={() => handleFeedback(message.id, 1)}
+                                className={`p-1.5 rounded-lg transition-all ${
+                                  message.rating === 1 ? 'text-accent bg-accent/10 scale-105 font-bold' : 'text-muted-foreground hover:text-accent hover:bg-secondary'
+                                }`}
+                                title="Thumbs Up"
+                              >
+                                <ThumbsUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleFeedback(message.id, -1)}
+                                className={`p-1.5 rounded-lg transition-all ${
+                                  message.rating === -1 ? 'text-red-500 bg-red-50 scale-105 font-bold' : 'text-muted-foreground hover:text-red-500 hover:bg-secondary'
+                                }`}
+                                title="Thumbs Down"
+                              >
+                                <ThumbsDown className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                         </div>
