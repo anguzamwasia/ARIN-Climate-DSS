@@ -3,6 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X, ChevronDown, Database, Bot, FileText, UserCircle, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -24,9 +25,25 @@ const navItems = [
 ]
 
 export function Header() {
+  const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null)
   const { user, logout } = useAuth()
+
+  const isItemActive = (item: typeof navItems[0]) => {
+    if (item.href === "/") {
+      return pathname === "/"
+    }
+    if (item.label === "Features") {
+      return (
+        pathname === "/features" ||
+        pathname === "/data-sources" ||
+        pathname === "/chatbot" ||
+        pathname === "/blog/submit"
+      )
+    }
+    return pathname === item.href || pathname.startsWith(item.href + "/")
+  }
 
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
@@ -89,7 +106,11 @@ export function Header() {
               >
                 <Link
                   href={item.href}
-                  className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-foreground/80 hover:text-primary transition-colors rounded-md hover:bg-secondary"
+                  className={`flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors rounded-md ${
+                    isItemActive(item)
+                      ? "text-accent bg-accent/5 font-semibold"
+                      : "text-foreground/80 hover:text-primary hover:bg-secondary"
+                  }`}
                 >
                   {item.label}
                   {item.submenu && <ChevronDown className="w-4 h-4" />}
@@ -227,7 +248,11 @@ export function Header() {
                   <div key={item.label}>
                     <Link
                       href={item.href}
-                      className="block px-4 py-2 text-sm font-medium text-foreground/80 hover:text-primary transition-colors"
+                      className={`block px-4 py-2 text-sm font-medium transition-colors rounded-md ${
+                        isItemActive(item)
+                          ? "text-accent bg-accent/5 font-semibold"
+                          : "text-foreground/80 hover:text-primary"
+                      }`}
                       onClick={() => !item.submenu && setMobileMenuOpen(false)}
                     >
                       {item.label}
