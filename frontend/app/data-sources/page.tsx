@@ -10,6 +10,7 @@ import AfricaMap from "../../components/AfricaMap"
 import MediaModal from "../../components/MediaModal"
 import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCircle, MapPin, ArrowDown, Loader2 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { useAuth } from "@/contexts/auth-context"
 import { Suspense } from "react"
 import { AnalyticsDashboard } from "./AnalyticsDashboard"
 import { Footer } from "@/components/footer"
@@ -56,6 +57,74 @@ const isCounty = (country?: string) => {
   return true;
 }
 
+interface MediaMetadata {
+  title: string;
+  summary: string;
+  insights: string[];
+}
+
+function getMediaMetadata(filename: string, body: string): MediaMetadata {
+  const nameLower = filename.toLowerCase();
+  
+  if (nameLower.includes("kii rw")) {
+    return {
+      title: "Key Informant Interview (Rwanda)",
+      summary: body || "Explored the process of developing the County Integrated Development Plan (CIDP).",
+      insights: [
+        "Discussed local government planning methodologies in Rwanda.",
+        "Identified opportunities to embed climate mitigation strategies directly into CIDPs.",
+        "Emphasized data-driven policy integration at county level."
+      ]
+    };
+  }
+  if (nameLower.includes("feedback_policyss_21oct2020") || nameLower.includes("sdg activity")) {
+    return {
+      title: "SDG Activity Feedback Policy Session (Oct 2020)",
+      summary: body || "Discussed identifying positive and negative interactions in SDG activities for Kenya.",
+      insights: [
+        "Analyzed positive and negative feedback regarding SDG goals in Kenyan county administrations.",
+        "Identified key implementation bottlenecks in national sustainability programs.",
+        "Highlighted local community engagement strategies for long-term project viability."
+      ]
+    };
+  }
+  if (nameLower.includes("public engagement session_24nov2020") || nameLower.includes("public engagement")) {
+    return {
+      title: "Public Engagement and Research Session (Nov 2020)",
+      summary: body || "Dr. Steve Dawney introduced public engagement and research strategies at the University of Southampton.",
+      insights: [
+        "Outlined University of Southampton's research frameworks for public communication.",
+        "Presented effective strategies for stakeholder management in climate research.",
+        "Emphasized bridging academic findings with local public understanding."
+      ]
+    };
+  }
+  if (nameLower.includes("policy brief session_30sept2020") || nameLower.includes("policy brief")) {
+    return {
+      title: "Policy Briefing and Development Session (Sept 2020)",
+      summary: body || "Participants shared their experiences transitioning into university life and early policy research, detailing key features of a policy brief.",
+      insights: [
+        "Reviewed key components and structure of effective policy briefs.",
+        "Discussed challenges faced by early-career researchers during transition periods.",
+        "Exemplified translating complex environmental data into clear policy points."
+      ]
+    };
+  }
+  
+  // Fallback cleanup
+  let cleanTitle = filename.replace(/^Transcript:\s*/i, '').replace(/\.(mp4|mp3|wav|avi)$/i, '').replace(/_/g, ' ');
+  cleanTitle = cleanTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return {
+    title: cleanTitle,
+    summary: body || "Summary of findings and discussions in this session.",
+    insights: [
+      "Key topics include climate change policy and regional feedback.",
+      "Identified opportunities for localized adaptation frameworks.",
+      "Emphasized collaborative data collection across sectors."
+    ]
+  };
+}
+
 const getCategory = (source: string, country?: string) => {
   if (["KOBO"].includes(source)) return "Field Submissions";
   if (["WHISPER"].includes(source)) return "Community Insights";
@@ -76,6 +145,7 @@ const categoryIcons: Record<string, any> = {
 }
 
 function DataSourcesContent() {
+  const { user } = useAuth()
   const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(true)
   const searchParams = useSearchParams()
@@ -284,7 +354,9 @@ function DataSourcesContent() {
                     </span>
                     {doc.country && <span className="text-[10px] text-muted-foreground">{doc.country}</span>}
                   </div>
-                  <h3 className="font-medium text-sm text-foreground line-clamp-3">{doc.title}</h3>
+                  <h3 className="font-medium text-sm text-foreground line-clamp-3">
+                    {getCategory(doc.source, doc.country) === "Community Insights" ? getMediaMetadata(doc.title, doc.body || "").title : doc.title}
+                  </h3>
                   
                   {(getCategory(doc.source, doc.country) === "Community Insights" || doc.source === "KOBO") && doc.body && (
                      <p className="text-xs text-muted-foreground line-clamp-3 my-2">{doc.body}</p>
@@ -333,10 +405,12 @@ function DataSourcesContent() {
           <MediaModal 
             isOpen={!!selectedMedia}
             onClose={() => setSelectedMedia(null)}
-            title={selectedMedia?.title || ""}
+            title={selectedMedia ? getMediaMetadata(selectedMedia.title, selectedMedia.body || "").title : ""}
             mediaUrl={selectedMedia?.file_url ? `${API_URL}/uploads/${selectedMedia.file_url}` : ""}
             transcript={selectedMedia?.content_text || selectedMedia?.body || ""}
-            insights={selectedMedia ? ["Discussed climate change impacts on local agriculture.", "Highlighted the need for immediate funding.", "Identified key vulnerable regions in Kenya."] : []}
+            insights={selectedMedia ? getMediaMetadata(selectedMedia.title, selectedMedia.body || "").insights : []}
+            summary={selectedMedia ? getMediaMetadata(selectedMedia.title, selectedMedia.body || "").summary : ""}
+            isAdmin={user?.email === "admin@arin-africa.org"}
           />
 
           {/* Kobo Detail Modal */}
