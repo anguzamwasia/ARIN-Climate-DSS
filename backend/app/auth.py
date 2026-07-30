@@ -11,7 +11,9 @@ from app.database import get_db
 from app.models.user import User
 
 # JWT Config
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-super-secret-key-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY or SECRET_KEY in ("your-super-secret-key-change-in-production", "your_super_secret_key"):
+    raise RuntimeError("CRITICAL SECURITY ERROR: JWT_SECRET_KEY environment variable is not defined or is using insecure defaults!")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
 

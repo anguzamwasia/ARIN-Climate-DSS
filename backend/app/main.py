@@ -31,7 +31,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.routers import health, documents, chat, blogs, transcription, contact, auth, notifications
+from app.routers import health, documents, chat, blogs, transcription, contact, auth, notifications, analytics
 from app.database import engine
 from app.models.user import Base
 from app.models.blog import Blog
@@ -81,7 +81,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://arin-climatedata.org",
+        "https://api.arin-climatedata.org",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://204.48.20.139:3000",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -98,3 +105,4 @@ app.include_router(transcription.router, tags=["Transcription"])
 app.include_router(contact.router, tags=["Contact"])
 app.include_router(auth.router, tags=["Auth"])
 app.include_router(notifications.router, tags=["Notifications"])
+app.include_router(analytics.router, tags=["Analytics"])
