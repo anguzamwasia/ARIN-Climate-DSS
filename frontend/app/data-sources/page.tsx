@@ -69,7 +69,7 @@ function getMediaMetadata(filename: string, body: string): MediaMetadata {
   if (nameLower.includes("kii rw")) {
     return {
       title: "Key Informant Interview (Rwanda)",
-      summary: body || "Explored the process of developing the County Integrated Development Plan (CIDP).",
+      summary: "This key informant interview details the comprehensive process of formulating, validating, and implementing the County Integrated Development Plan (CIDP) in Rwanda. The discussion covers the methodology used to integrate localized climate information into strategic policy frameworks, highlighting the critical role played by multi-stakeholder participation.\n\nKey points focused on mapping agricultural vulnerability, addressing immediate budget allocation concerns for rural counties, and introducing sustainable development targets. Participants emphasized that aligning local plans with national climate adaptation strategies is key to ensuring long-term resilience and securing international climate finance.",
       insights: [
         "Discussed local government planning methodologies in Rwanda.",
         "Identified opportunities to embed climate mitigation strategies directly into CIDPs.",
@@ -80,7 +80,7 @@ function getMediaMetadata(filename: string, body: string): MediaMetadata {
   if (nameLower.includes("feedback_policyss_21oct2020") || nameLower.includes("sdg activity")) {
     return {
       title: "SDG Activity Feedback Policy Session (Oct 2020)",
-      summary: body || "Discussed identifying positive and negative interactions in SDG activities for Kenya.",
+      summary: "This policy session evaluates SDG activity feedback across various county administrations in Kenya. The panel analyzed positive and negative interactions occurring during project implementations, highlighting the success of localized water access initiatives and the challenges of solid waste management.\n\nDiscussions centered on developing actionable indicators for tracking progress on sustainable consumption, climate actions, and land management. The participants recommended closer cooperation between the national ministry and county departments to resolve overlapping regulatory mandates and streamline reporting frameworks.",
       insights: [
         "Analyzed positive and negative feedback regarding SDG goals in Kenyan county administrations.",
         "Identified key implementation bottlenecks in national sustainability programs.",
@@ -91,7 +91,7 @@ function getMediaMetadata(filename: string, body: string): MediaMetadata {
   if (nameLower.includes("public engagement session_24nov2020") || nameLower.includes("public engagement")) {
     return {
       title: "Public Engagement and Research Session (Nov 2020)",
-      summary: body || "Dr. Steve Dawney introduced public engagement and research strategies at the University of Southampton.",
+      summary: "This session, led by Dr. Steve Dawney, introduces effective strategies for public engagement and research dissemination at the University of Southampton. The presentation emphasizes the transition from academic publications to public-facing dialogues, outlining tools to translate complex climate modeling data into understandable language for local communities.\n\nFurther discussions highlighted building trust with civic leaders, measuring the long-term impact of community-led advocacy programs, and integrating public feedback loops back into active research methodologies.",
       insights: [
         "Outlined University of Southampton's research frameworks for public communication.",
         "Presented effective strategies for stakeholder management in climate research.",
@@ -102,7 +102,7 @@ function getMediaMetadata(filename: string, body: string): MediaMetadata {
   if (nameLower.includes("policy brief session_30sept2020") || nameLower.includes("policy brief")) {
     return {
       title: "Policy Briefing and Development Session (Sept 2020)",
-      summary: body || "Participants shared their experiences transitioning into university life and early policy research, detailing key features of a policy brief.",
+      summary: "This training session details the preparation and structure of policy briefs designed for decision-makers in climate policy. Participants explored transitioning academic research into concise briefs, detailing executive summaries, policy recommendations, and visual data callouts.\n\nThe session concluded with peer reviews of brief drafts, identifying common pitfalls such as excessive jargon, lack of clear resource requirements, and failing to define a clear theory of change.",
       insights: [
         "Reviewed key components and structure of effective policy briefs.",
         "Discussed challenges faced by early-career researchers during transition periods.",
@@ -375,7 +375,7 @@ function DataSourcesContent() {
                         onClick={() => setSelectedMedia(doc)}
                         className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors"
                       >
-                        <PlayCircle className="w-4 h-4" /> View Media
+                        <PlayCircle className="w-4 h-4" /> {user?.email === "admin@arin-africa.org" ? "View Media" : "Check More Info"}
                       </button>
                     ) : (
                       <>

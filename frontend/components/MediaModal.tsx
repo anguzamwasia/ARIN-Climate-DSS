@@ -47,7 +47,7 @@ export default function MediaModal({
         {/* Content */}
         <div className="overflow-y-auto flex-1 p-6 space-y-6">
           {/* Media Player - Admin Only */}
-          {isAdmin ? (
+          {isAdmin && (
             <div className="bg-black rounded-xl overflow-hidden shadow-inner flex justify-center items-center relative" style={{ minHeight: isAudio ? 'auto' : '400px' }}>
               {isAudio ? (
                 <div className="w-full p-8 flex flex-col items-center gap-4 bg-slate-800 text-white">
@@ -57,14 +57,6 @@ export default function MediaModal({
               ) : (
                 <video controls src={mediaUrl} className="w-full h-auto max-h-[500px]" />
               )}
-            </div>
-          ) : (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex items-start gap-3">
-              <ShieldAlert className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-semibold text-slate-800">Privacy Protection Mode</h4>
-                <p className="text-xs text-slate-500 mt-0.5">Raw audio recordings and full transcripts are restricted to verified administrators to protect participant privacy. High-level summaries and key insights are shared below.</p>
-              </div>
             </div>
           )}
 
