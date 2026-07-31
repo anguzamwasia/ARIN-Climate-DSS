@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -8,7 +8,7 @@ import dynamic from "next/dynamic"
 const KenyaMap = dynamic(() => import("../components/KenyaMapClient"), { ssr: false })
 import AfricaMap from "../../components/AfricaMap"
 import MediaModal from "../../components/MediaModal"
-import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCircle, MapPin, ArrowDown, Loader2, Lock } from "lucide-react"
+import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCircle, MapPin, ArrowDown, Loader2, Lock, ChevronUp } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
 import { Suspense } from "react"
@@ -125,6 +125,17 @@ function getMediaMetadata(filename: string, body: string): MediaMetadata {
   };
 }
 
+function cleanKoboLabel(label: string): string {
+  let clean = label;
+  const slashIdx = clean.lastIndexOf('/');
+  if (slashIdx !== -1) {
+    clean = clean.substring(slashIdx + 1);
+  }
+  clean = clean.replace(/^\d+\s+/, '');
+  clean = clean.replace(/_/g, ' ').trim();
+  return clean.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
 const getCategory = (source: string, country?: string) => {
   if (["KOBO"].includes(source)) return "Field Submissions";
   if (["WHISPER"].includes(source)) return "Community Insights";
@@ -169,10 +180,18 @@ function DataSourcesContent() {
   const [search, setSearch] = useState("")
   const [selectedMapCounty, setSelectedMapCounty] = useState<string | null>(null)
   const [selectedMedia, setSelectedMedia] = useState<Doc | null>(null)
-  const [selectedKoboDoc, setSelectedKoboDoc] = useState<Doc | null>(null)
+  const [selectedKoboDoc, setSelectedKoboDoc] = useState<any | null>(null)
   const [selectedKoboSubIdx, setSelectedKoboSubIdx] = useState<number>(0)
   const [isInfographicOpen, setIsInfographicOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (selectedKoboDoc && scrollRef.current) {
+      // Focus the container to enable up/down arrow key scrolling natively
+      scrollRef.current.focus()
+    }
+  }, [selectedKoboDoc])
 
   useEffect(() => {
     setMounted(true)
@@ -225,17 +244,22 @@ function DataSourcesContent() {
       const countryStr = countries.join(", ") || "Kenya";
       const totalResponses = submissions.length;
 
+      let cleanFormName = formName;
+      if (formName.match(/^[a-zA-Z0-9-_]{15,30}$/)) {
+        cleanFormName = "Climate Adaptation Field Surveys";
+      }
+
       return {
         id: `kobo-group-${idx}`,
-        title: `${formName} Study`,
-        formName: formName,
+        title: `${cleanFormName} Study`,
+        formName: cleanFormName,
         url: submissions[0]?.url || "#",
         file_url: "",
         source: "KOBO",
         country: countryStr,
         type: "Grouped Survey",
         scraped_at: submissions[0]?.scraped_at || new Date().toISOString(),
-        body: `Consolidated questionnaire form '${formName}' containing ${totalResponses} field responses from study participants.`,
+        body: `Consolidated questionnaire form '${cleanFormName}' containing ${totalResponses} field responses from study participants.`,
         content_text: "",
         submissions: submissions,
         isGroupedKobo: true
@@ -289,7 +313,9 @@ function DataSourcesContent() {
             </button>
             {categories.map((cat) => {
               const Icon = categoryIcons[cat] || Database
-              const count = processedDocs.filter((d) => getCategory(d.source, d.country) === cat).length
+              const count = cat === "Field Submissions" 
+                ? docs.filter(d => d.source === "KOBO").length 
+                : processedDocs.filter((d) => getCategory(d.source, d.country) === cat).length
               return (
                 <button key={cat} onClick={() => setActiveSource(cat)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeSource === cat ? "bg-accent text-white" : "bg-secondary text-muted-foreground hover:bg-secondary/80"}`}>
                   <Icon className="w-4 h-4" />
@@ -496,7 +522,7 @@ function DataSourcesContent() {
                 </DialogDescription>
               </DialogHeader>
               
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div ref={scrollRef} tabIndex={0} className="flex-1 overflow-y-auto p-6 space-y-6 focus:outline-none">
                 {selectedKoboDoc?.isGroupedKobo ? (
                   <>
                     {/* Public & Admin Group Overview */}
@@ -560,78 +586,66 @@ function DataSourcesContent() {
                       )}
                     </div>
 
-                    {/* Admin Only Submissions Explorer */}
+                    {/* Admin Only Submissions Accordion list */}
                     {isAdmin && (
                       <div className="border-t pt-6 space-y-4">
-                        <h4 className="text-sm font-bold text-slate-800">Detailed Submissions Explorer</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                          {/* Sidebar Selector */}
-                          <div className="col-span-1 space-y-2 border-r pr-4 max-h-[350px] overflow-y-auto">
-                            {selectedKoboDoc.submissions?.map((sub: any, idx: number) => {
-                              const name = sub.content_text ? getRespondentName(sub.content_text) : "Anonymous Respondent";
-                              const isSelected = selectedKoboSubIdx === idx;
-                              return (
+                        <h4 className="text-sm font-bold text-slate-800">Individual Respondent Submissions ({selectedKoboDoc.submissions?.length || 0})</h4>
+                        <div className="space-y-3">
+                          {selectedKoboDoc.submissions?.map((sub: any, idx: number) => {
+                            const respondentName = sub.content_text ? getRespondentName(sub.content_text) : "Anonymous Respondent";
+                            const isExpanded = selectedKoboSubIdx === idx;
+                            return (
+                              <div key={sub.id} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                                 <button
-                                  key={sub.id}
-                                  onClick={() => setSelectedKoboSubIdx(idx)}
-                                  className={`w-full text-left p-3 rounded-xl border transition-all text-xs flex flex-col gap-1 ${
-                                    isSelected 
-                                      ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold shadow-sm" 
-                                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                                  }`}
+                                  onClick={() => setSelectedKoboSubIdx(isExpanded ? -1 : idx)}
+                                  className="w-full px-5 py-4 bg-slate-50 hover:bg-slate-100 transition-colors flex justify-between items-center text-left"
                                 >
-                                  <span className="font-semibold truncate">{name}</span>
-                                  <div className="flex justify-between text-[10px] text-slate-500 font-normal">
-                                    <span>{sub.country}</span>
-                                    <span>{new Date(sub.scraped_at).toLocaleDateString()}</span>
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="text-xs text-slate-500 uppercase font-bold">Response #{idx + 1}</span>
+                                    <span className="text-sm font-bold text-primary">{respondentName}</span>
+                                  </div>
+                                  <div className="text-right flex items-center gap-3">
+                                    <div className="flex flex-col items-end gap-0.5 text-xs text-slate-600">
+                                      <span className="font-semibold">{sub.country}</span>
+                                      <span className="text-[10px] text-slate-400">{new Date(sub.scraped_at).toLocaleDateString()}</span>
+                                    </div>
+                                    {isExpanded ? (
+                                      <ChevronUp className="w-5 h-5 text-slate-500" />
+                                    ) : (
+                                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                      </svg>
+                                    )}
                                   </div>
                                 </button>
-                              );
-                            })}
-                          </div>
-
-                          {/* Details Display Panel */}
-                          <div className="col-span-1 md:col-span-2 space-y-4 max-h-[350px] overflow-y-auto pr-1">
-                            {(() => {
-                              const sub = selectedKoboDoc.submissions?.[selectedKoboSubIdx];
-                              if (!sub) return <p className="text-xs text-muted-foreground italic">No submission selected.</p>;
-                              const respondentName = sub.content_text ? getRespondentName(sub.content_text) : "Anonymous Respondent";
-                              return (
-                                <div className="space-y-4">
-                                  <div className="flex justify-between items-center bg-slate-50 border p-3 rounded-xl">
-                                    <div>
-                                      <span className="text-[10px] uppercase font-bold text-slate-400">Respondent Name</span>
-                                      <h5 className="text-xs font-bold text-primary">{respondentName}</h5>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="text-[10px] uppercase font-bold text-slate-400">Location & Date</span>
-                                      <p className="text-[10px] font-semibold text-slate-700">{sub.country} • {new Date(sub.scraped_at).toLocaleDateString()}</p>
-                                    </div>
+                                
+                                {isExpanded && (
+                                  <div className="p-5 border-t bg-white space-y-4">
+                                    {sub.content_text ? (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {sub.content_text.split('\n').map((line: string, lIdx: number) => {
+                                          const colonIdx = line.indexOf(':');
+                                          if (colonIdx === -1) return <p key={lIdx} className="text-xs text-slate-600 col-span-2">{line}</p>;
+                                          const label = line.substring(0, colonIdx).trim();
+                                          const val = line.substring(colonIdx + 1).trim();
+                                          if (!val) return null;
+                                          return (
+                                            <div key={lIdx} className="p-4 bg-slate-50/50 border border-slate-100 hover:border-slate-200 rounded-2xl transition flex flex-col gap-1">
+                                              <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">{cleanKoboLabel(label)}</span>
+                                              <span className="text-xs text-slate-800 font-medium leading-relaxed">{val.replace(/_/g, ' ')}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground italic text-center py-6">No details available.</p>
+                                    )}
                                   </div>
-
-                                  {sub.content_text ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      {sub.content_text.split('\n').map((line: string, lIdx: number) => {
-                                        const colonIdx = line.indexOf(':');
-                                        if (colonIdx === -1) return <p key={lIdx} className="text-xs text-slate-600 col-span-2">{line}</p>;
-                                        const label = line.substring(0, colonIdx).replace(/_/g, ' ').toUpperCase();
-                                        const val = line.substring(colonIdx + 1).trim();
-                                        if (!val) return null;
-                                        return (
-                                          <div key={lIdx} className="p-3 bg-slate-50/50 border border-slate-100 hover:border-slate-200 rounded-xl transition flex flex-col gap-1">
-                                            <span className="font-bold text-[9px] text-slate-400 uppercase tracking-wider">{label}</span>
-                                            <span className="text-xs text-slate-800 font-medium leading-relaxed">{val}</span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground italic text-center py-6">No details available.</p>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
