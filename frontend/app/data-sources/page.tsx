@@ -171,14 +171,18 @@ function DataSourcesContent() {
   const [selectedMedia, setSelectedMedia] = useState<Doc | null>(null)
   const [selectedKoboDoc, setSelectedKoboDoc] = useState<Doc | null>(null)
   const [isInfographicOpen, setIsInfographicOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     fetch(`${API_URL}/documents?limit=10000`)
       .then((res) => res.json())
       .then((data) => setDocs(Array.isArray(data) ? data : []))
       .catch(() => setDocs([]))
       .finally(() => setLoading(false))
   }, [])
+
+  const isAdmin = mounted && user?.email === "admin@arin-africa.org"
 
   const categories = ["National Reports", "Regional Data", "Community Insights", "Field Submissions", "Others"];
 
@@ -422,14 +426,14 @@ function DataSourcesContent() {
                         onClick={() => setSelectedKoboDoc(doc)}
                         className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-800 font-medium bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors"
                       >
-                        <FileText className="w-4 h-4" /> {user?.email === "admin@arin-africa.org" ? "View Field Data Group" : "Check More Info"}
+                        <FileText className="w-4 h-4" /> {isAdmin ? "View Field Data Group" : "Check More Info"}
                       </button>
                     ) : getCategory(doc.source, doc.country) === "Community Insights" ? (
                       <button 
                         onClick={() => setSelectedMedia(doc)}
                         className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors"
                       >
-                        <PlayCircle className="w-4 h-4" /> {user?.email === "admin@arin-africa.org" ? "View Media" : "Check More Info"}
+                        <PlayCircle className="w-4 h-4" /> {isAdmin ? "View Media" : "Check More Info"}
                       </button>
                     ) : (
                       <>
@@ -464,7 +468,7 @@ function DataSourcesContent() {
             transcript={selectedMedia?.content_text || selectedMedia?.body || ""}
             insights={selectedMedia ? getMediaMetadata(selectedMedia.title, selectedMedia.body || "").insights : []}
             summary={selectedMedia ? getMediaMetadata(selectedMedia.title, selectedMedia.body || "").summary : ""}
-            isAdmin={user?.email === "admin@arin-africa.org"}
+            isAdmin={isAdmin}
           />
 
           {/* Kobo Detail Modal */}
