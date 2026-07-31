@@ -11,6 +11,14 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DEFAULT_UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", DEFAULT_UPLOAD_DIR)
 
+_MODEL_CACHE = {}
+
+def get_whisper_model():
+    if "model" not in _MODEL_CACHE:
+        logger.info("Initializing free local Whisper engine into memory storage...")
+        _MODEL_CACHE["model"] = whisper.load_model("base")
+    return _MODEL_CACHE["model"]
+
 def transcribe_community_audio(filename: str) -> str:
     """
     Core production service pipeline wrapper using FREE local Whisper engine.
@@ -31,10 +39,8 @@ def transcribe_community_audio(filename: str) -> str:
     processed_path = compress_media_to_whisper_spec(input_file_path)
 
     try:
-        # Load local model footprint balance criteria: 
-        # "base" provides accurate human speech text without consuming heavy RAM/GPU resources.
-        logger.info("Initializing free local Whisper engine into memory storage...")
-        local_model = whisper.load_model("base")
+        # Load local model footprint balance criteria
+        local_model = get_whisper_model()
         
         logger.info(f"Processing local speech recognition tracking for: {os.path.basename(processed_path)}")
         
