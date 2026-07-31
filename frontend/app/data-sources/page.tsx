@@ -170,6 +170,7 @@ function DataSourcesContent() {
   const [selectedMapCounty, setSelectedMapCounty] = useState<string | null>(null)
   const [selectedMedia, setSelectedMedia] = useState<Doc | null>(null)
   const [selectedKoboDoc, setSelectedKoboDoc] = useState<Doc | null>(null)
+  const [selectedKoboSubIdx, setSelectedKoboSubIdx] = useState<number>(0)
   const [isInfographicOpen, setIsInfographicOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -423,7 +424,7 @@ function DataSourcesContent() {
                   <div className="flex gap-3 mt-auto pt-2">
                     {doc.source === "KOBO" ? (
                       <button 
-                        onClick={() => setSelectedKoboDoc(doc)}
+                        onClick={() => { setSelectedKoboDoc(doc); setSelectedKoboSubIdx(0); }}
                         className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-800 font-medium bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors"
                       >
                         <FileText className="w-4 h-4" /> {isAdmin ? "View Field Data Group" : "Check More Info"}
@@ -473,11 +474,11 @@ function DataSourcesContent() {
 
           {/* Kobo Detail Modal */}
           <Dialog open={!!selectedKoboDoc} onOpenChange={(open) => !open && setSelectedKoboDoc(null)}>
-            <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col p-0 bg-white rounded-2xl shadow-lg border border-border overflow-hidden">
+            <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col p-0 bg-white rounded-2xl shadow-lg border border-border overflow-hidden">
               <DialogHeader className="border-b p-6 bg-slate-50 flex-shrink-0">
                 <div className="flex items-center gap-2">
+                  <Database className="w-5 h-5 text-accent" />
                   <DialogTitle className="text-xl font-bold text-primary flex items-center gap-2">
-                    <Database className="w-5 h-5 text-accent" />
                     {selectedKoboDoc?.isGroupedKobo ? `${selectedKoboDoc.formName} Study` : selectedKoboDoc?.title}
                   </DialogTitle>
                   {selectedKoboDoc?.isGroupedKobo && (
@@ -499,19 +500,36 @@ function DataSourcesContent() {
                 {selectedKoboDoc?.isGroupedKobo ? (
                   <>
                     {/* Public & Admin Group Overview */}
-                    <div className="space-y-4">
-                      <div className="p-5 bg-emerald-50/40 border border-emerald-100/60 rounded-2xl">
-                        <h4 className="text-sm font-bold text-emerald-950 mb-1.5 flex items-center gap-1.5">
-                          ✨ Study Overview & Objectives
-                        </h4>
-                        <p className="text-sm text-emerald-900 leading-relaxed font-medium">
-                          {selectedKoboDoc.body}
-                        </p>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                      {/* Left: Objectives & Insights */}
+                      <div className="space-y-4">
+                        <div className="p-5 bg-emerald-50/40 border border-emerald-100/60 rounded-2xl">
+                          <h4 className="text-sm font-bold text-emerald-950 mb-1.5 flex items-center gap-1.5">
+                            ✨ Study Overview & Objectives
+                          </h4>
+                          <p className="text-xs text-emerald-900 leading-relaxed font-medium">
+                            {selectedKoboDoc.body}
+                          </p>
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+                          <h4 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-1.5">
+                            📋 Aggregated Insights & Findings
+                          </h4>
+                          <p className="text-xs text-blue-800 leading-relaxed mb-3">
+                            Based on the survey inputs from {selectedKoboDoc.submissions?.length || 0} participants, key adaptation priorities center heavily on sustainable resource security, community educational support, and financial resilience.
+                          </p>
+                          <ul className="list-disc list-inside space-y-1.5 text-[11px] text-blue-800 font-medium">
+                            <li>Major issues centered on extreme weather hazards including severe drought conditions.</li>
+                            <li>Rainwater harvesting systems were frequently proposed as immediate mitigation strategies.</li>
+                            <li>Strong community recommendations emphasize developing local green job portfolios and county grants.</li>
+                          </ul>
+                        </div>
                       </div>
 
-                      {/* Dynamic CSS Location Bar Graph */}
+                      {/* Right: Study Area Location Bar Chart */}
                       {selectedKoboDoc.submissions && (
-                        <div className="space-y-3 bg-slate-50 border border-slate-200/60 p-5 rounded-2xl">
+                        <div className="space-y-3 bg-slate-50 border border-slate-200/60 p-5 rounded-2xl self-stretch">
                           <h4 className="text-sm font-bold text-slate-800 mb-2">Areas of Study & Response Densities</h4>
                           {(() => {
                             const locationCounts: Record<string, number> = {};
@@ -540,72 +558,80 @@ function DataSourcesContent() {
                           })()}
                         </div>
                       )}
-
-                      {/* Aggregated Feedback & Findings */}
-                      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
-                        <h4 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-1.5">
-                          📋 Aggregated Insights & Findings
-                        </h4>
-                        <p className="text-sm text-blue-800 leading-relaxed mb-3">
-                          Based on the survey inputs from {selectedKoboDoc.submissions?.length || 0} participants, key adaptation priorities center heavily on sustainable resource security, community educational support, and financial resilience.
-                        </p>
-                        <ul className="list-disc list-inside space-y-1.5 text-xs text-blue-800 font-medium">
-                          <li>Major issues centered on extreme weather hazards including severe drought conditions.</li>
-                          <li>Rainwater harvesting systems were frequently proposed as immediate mitigation strategies.</li>
-                          <li>Strong community recommendations emphasize developing local green job portfolios and county grants.</li>
-                        </ul>
-                      </div>
                     </div>
 
-                    {/* Admin Only Accordion Section */}
-                    {isAdmin ? (
+                    {/* Admin Only Submissions Explorer */}
+                    {isAdmin && (
                       <div className="border-t pt-6 space-y-4">
-                        <h4 className="text-sm font-bold text-slate-800">Detailed Submissions (Admin-Only Access)</h4>
-                        <div className="space-y-3">
-                          {selectedKoboDoc.submissions?.map((sub: any, idx: number) => {
-                            const respondentName = sub.content_text ? getRespondentName(sub.content_text) : "Anonymous Respondent";
-                            return (
-                              <div key={sub.id} className="border border-slate-200 rounded-xl overflow-hidden">
-                                <div className="px-4 py-3 bg-slate-50 border-b flex justify-between items-center">
-                                  <span className="text-xs font-semibold text-slate-800">
-                                    Response #{idx + 1}: <span className="font-bold text-primary">{respondentName}</span>
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {sub.country} • {new Date(sub.scraped_at).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                <div className="p-4 bg-white space-y-2 max-h-[250px] overflow-y-auto">
+                        <h4 className="text-sm font-bold text-slate-800">Detailed Submissions Explorer</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                          {/* Sidebar Selector */}
+                          <div className="col-span-1 space-y-2 border-r pr-4 max-h-[350px] overflow-y-auto">
+                            {selectedKoboDoc.submissions?.map((sub: any, idx: number) => {
+                              const name = sub.content_text ? getRespondentName(sub.content_text) : "Anonymous Respondent";
+                              const isSelected = selectedKoboSubIdx === idx;
+                              return (
+                                <button
+                                  key={sub.id}
+                                  onClick={() => setSelectedKoboSubIdx(idx)}
+                                  className={`w-full text-left p-3 rounded-xl border transition-all text-xs flex flex-col gap-1 ${
+                                    isSelected 
+                                      ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold shadow-sm" 
+                                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span className="font-semibold truncate">{name}</span>
+                                  <div className="flex justify-between text-[10px] text-slate-500 font-normal">
+                                    <span>{sub.country}</span>
+                                    <span>{new Date(sub.scraped_at).toLocaleDateString()}</span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Details Display Panel */}
+                          <div className="col-span-1 md:col-span-2 space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                            {(() => {
+                              const sub = selectedKoboDoc.submissions?.[selectedKoboSubIdx];
+                              if (!sub) return <p className="text-xs text-muted-foreground italic">No submission selected.</p>;
+                              const respondentName = sub.content_text ? getRespondentName(sub.content_text) : "Anonymous Respondent";
+                              return (
+                                <div className="space-y-4">
+                                  <div className="flex justify-between items-center bg-slate-50 border p-3 rounded-xl">
+                                    <div>
+                                      <span className="text-[10px] uppercase font-bold text-slate-400">Respondent Name</span>
+                                      <h5 className="text-xs font-bold text-primary">{respondentName}</h5>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-[10px] uppercase font-bold text-slate-400">Location & Date</span>
+                                      <p className="text-[10px] font-semibold text-slate-700">{sub.country} • {new Date(sub.scraped_at).toLocaleDateString()}</p>
+                                    </div>
+                                  </div>
+
                                   {sub.content_text ? (
-                                    <div className="grid grid-cols-1 gap-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                       {sub.content_text.split('\n').map((line: string, lIdx: number) => {
                                         const colonIdx = line.indexOf(':');
-                                        if (colonIdx === -1) return <p key={lIdx} className="text-xs text-slate-600">{line}</p>;
+                                        if (colonIdx === -1) return <p key={lIdx} className="text-xs text-slate-600 col-span-2">{line}</p>;
                                         const label = line.substring(0, colonIdx).replace(/_/g, ' ').toUpperCase();
                                         const val = line.substring(colonIdx + 1).trim();
                                         if (!val) return null;
                                         return (
-                                          <div key={lIdx} className="p-2 bg-slate-50 border border-slate-100 rounded flex flex-col text-xs">
-                                            <span className="font-bold text-[9px] text-slate-500 uppercase tracking-wider">{label}</span>
-                                            <span className="text-slate-800 mt-0.5">{val}</span>
+                                          <div key={lIdx} className="p-3 bg-slate-50/50 border border-slate-100 hover:border-slate-200 rounded-xl transition flex flex-col gap-1">
+                                            <span className="font-bold text-[9px] text-slate-400 uppercase tracking-wider">{label}</span>
+                                            <span className="text-xs text-slate-800 font-medium leading-relaxed">{val}</span>
                                           </div>
                                         );
                                       })}
                                     </div>
                                   ) : (
-                                    <p className="text-xs text-muted-foreground italic">No details available.</p>
+                                    <p className="text-xs text-muted-foreground italic text-center py-6">No details available.</p>
                                   )}
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="border-t pt-6 bg-slate-50 p-4 rounded-xl flex items-center gap-3 border border-slate-200">
-                        <Lock className="w-5 h-5 text-slate-400 shrink-0" />
-                        <div>
-                          <h5 className="text-xs font-bold text-slate-700">Individual Respondent Data Gated</h5>
-                          <p className="text-[11px] text-slate-500 mt-0.5">Individual responder names and full raw questionnaire transcripts are restricted to authorized administrators. Access has been sanitized for public view.</p>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
                     )}
