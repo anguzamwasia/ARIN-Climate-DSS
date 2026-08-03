@@ -13,6 +13,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 function SignInForm() {
   const [isSignUp, setIsSignUp] = useState(false)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -20,6 +21,7 @@ function SignInForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   
   const { login } = useAuth()
@@ -30,17 +32,19 @@ function SignInForm() {
   // Reset error and fields when toggling mode
   useEffect(() => {
     setError(null)
+    setSuccessMessage(null)
     setConfirmPassword("")
-  }, [isSignUp])
+  }, [isSignUp, isForgotPassword])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setSuccessMessage(null)
     
     if (!email || !password) return
     if (isSignUp && !name) return
 
-    if (isSignUp && password !== confirmPassword) {
+    if ((isSignUp || isForgotPassword) && password !== confirmPassword) {
       setError("Passwords do not match.")
       return
     }
@@ -48,7 +52,25 @@ function SignInForm() {
     setIsLoading(true)
 
     try {
-      if (isSignUp) {
+      if (isForgotPassword) {
+        // Reset Password API Call
+        const res = await fetch(`${API_URL}/api/v1/auth/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, new_password: password }),
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Failed to reset password.")
+        }
+
+        setSuccessMessage("Password reset successfully! You can now sign in.")
+        setIsForgotPassword(false)
+        setPassword("")
+        setConfirmPassword("")
+      } else if (isSignUp) {
         // Sign Up API Call
         const res = await fetch(`${API_URL}/api/v1/auth/signup`, {
           method: "POST",
@@ -102,12 +124,14 @@ function SignInForm() {
         <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-border">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-serif font-bold text-foreground">
-              {isSignUp ? "Create Account" : "Sign In"}
+              {isForgotPassword ? "Reset Password" : isSignUp ? "Create Account" : "Sign In"}
             </h1>
             <p className="text-muted-foreground mt-2 text-sm">
-              {isSignUp 
-                ? "Join the ARIN Climate DSS community." 
-                : "Welcome back to ARIN Climate DSS"}
+              {isForgotPassword 
+                ? "Reset your account credentials."
+                : isSignUp 
+                  ? "Join the ARIN Climate DSS community." 
+                  : "Welcome back to ARIN Climate DSS"}
             </p>
           </div>
           
@@ -115,6 +139,12 @@ function SignInForm() {
             <div className="mb-6 p-3 bg-red-50 text-red-800 border border-red-200 rounded-lg text-sm flex items-start gap-2">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mb-6 p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-sm">
+              {successMessage}
             </div>
           )}
           
@@ -143,7 +173,7 @@ function SignInForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{isForgotPassword ? "New Password" : "Password"}</Label>
               <div className="relative">
                 <Input 
                   id="password" 
@@ -161,16 +191,29 @@ function SignInForm() {
                 </button>
               </div>
             </div>
-            {isSignUp && (
+
+            {!isSignUp && !isForgotPassword && (
+              <div className="text-right">
+                <button 
+                  type="button"
+                  onClick={() => { setIsForgotPassword(true); setError(null); setSuccessMessage(null); }}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
+
+            {(isSignUp || isForgotPassword) && (
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">{isForgotPassword ? "Confirm New Password" : "Confirm Password"}</Label>
                 <div className="relative">
                   <Input 
                     id="confirmPassword" 
                     type={showConfirmPassword ? "text" : "password"} 
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    required={isSignUp}
+                    required={(isSignUp || isForgotPassword)}
                   />
                   <button
                     type="button"
@@ -185,21 +228,34 @@ function SignInForm() {
             
             <Button disabled={isLoading} type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4 flex items-center justify-center gap-2">
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSignUp ? "Sign Up" : "Sign In"}
+              {isForgotPassword ? "Reset Password" : isSignUp ? "Sign Up" : "Sign In"}
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">
-              {isSignUp ? "Already have an account?" : "Don't have an account yet?"}
-            </span>
-            <button 
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="ml-1 text-primary hover:underline font-medium"
-            >
-              {isSignUp ? "Sign in" : "Sign up"}
-            </button>
-          </div>
+          {isForgotPassword ? (
+            <div className="mt-6 text-center text-sm">
+              <button 
+                type="button"
+                onClick={() => { setIsForgotPassword(false); setError(null); setSuccessMessage(null); }}
+                className="text-primary hover:underline font-medium"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          ) : (
+            <div className="mt-6 text-center text-sm">
+              <span className="text-muted-foreground">
+                {isSignUp ? "Already have an account?" : "Don't have an account yet?"}
+              </span>
+              <button 
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="ml-1 text-primary hover:underline font-medium"
+              >
+                {isSignUp ? "Sign in" : "Sign up"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import {
   Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines, BookOpen, Edit
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { useAuth } from "@/contexts/auth-context"
 import dynamic from "next/dynamic"
 import "react-quill-new/dist/quill.snow.css"
 
@@ -38,6 +39,7 @@ interface LocalMediaLog {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 export default function UnifiedAdminPortal() {
+  const { token } = useAuth()
   // Navigation Tracking Layout Toggle
   const [activeTab, setActiveTab] = useState<"blogs" | "media" | "research">("blogs")
 
@@ -62,7 +64,11 @@ export default function UnifiedAdminPortal() {
 
   const fetchUserStats = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/admin/users/stats`)
+      const res = await fetch(`${API_URL}/api/v1/admin/users/stats`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
       if (res.ok) {
         const data = await res.json()
         setUserStats(data)
@@ -72,7 +78,11 @@ export default function UnifiedAdminPortal() {
 
   const fetchContentStats = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/admin/content/stats`)
+      const res = await fetch(`${API_URL}/api/v1/admin/content/stats`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
       if (res.ok) {
         const data = await res.json()
         setContentStats(data)
@@ -120,8 +130,16 @@ export default function UnifiedAdminPortal() {
 
   useEffect(() => {
     fetchBlogs()
-    fetchUserStats()
-    fetchContentStats()
+  }, [])
+
+  useEffect(() => {
+    if (token) {
+      fetchUserStats()
+      fetchContentStats()
+    }
+  }, [token])
+
+  useEffect(() => {
 
     const savedMedia = localStorage.getItem("arin_processed_media_logs")
     if (savedMedia) {
@@ -147,7 +165,12 @@ export default function UnifiedAdminPortal() {
   const handleApprove = async (id: string) => {
     setIsProcessingBlog(true)
     try {
-      const res = await fetch(`${API_URL}/blogs/${id}/approve`, { method: "PATCH" })
+      const res = await fetch(`${API_URL}/blogs/${id}/approve`, { 
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
       if (res.ok) {
         await fetchBlogs()
         setBlogActionMessage("✅ Verified successfully!")
@@ -164,7 +187,10 @@ export default function UnifiedAdminPortal() {
     try {
       const res = await fetch(`${API_URL}/blogs/${selectedBlog.id}/reject`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ feedback: rejectionReason.trim() })
       })
       if (res.ok) {
@@ -250,6 +276,9 @@ export default function UnifiedAdminPortal() {
       // Connects directly to our backend endpoint route layer
       const response = await fetch(`${API_URL}/api/v1/admin/media/upload`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
         body: formData,
       })
 
@@ -291,19 +320,24 @@ export default function UnifiedAdminPortal() {
   const handleDocUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!uploadingFile) return
+    if (!docDescription || !docDescription.trim()) {
+      setUploadMessage("❌ Document description is mandatory.")
+      return
+    }
 
     setIsUploading(true)
     setUploadMessage("Uploading document to secure storage...")
 
     const formData = new FormData()
     formData.append("file", uploadingFile)
-    if (docDescription.trim()) {
-      formData.append("description", docDescription)
-    }
+    formData.append("description", docDescription.trim())
 
     try {
       const response = await fetch(`${API_URL}/api/v1/admin/documents/upload`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
         body: formData,
       })
 
@@ -362,6 +396,31 @@ export default function UnifiedAdminPortal() {
           </Link>
         </div>
       </header>
+
+      {/* Mobile Tab Navigation Bar */}
+      <div className="md:hidden bg-white border-b flex justify-around p-2 flex-shrink-0">
+        <button 
+          onClick={() => switchTab("blogs")} 
+          className={`flex flex-col items-center gap-1 p-2 text-xs font-semibold rounded-lg transition-colors ${activeTab === "blogs" ? "text-emerald-700 font-bold" : "text-gray-500"}`}
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          <span>Blogs ({pendingBlogs.length})</span>
+        </button>
+        <button 
+          onClick={() => switchTab("research")} 
+          className={`flex flex-col items-center gap-1 p-2 text-xs font-semibold rounded-lg transition-colors ${activeTab === "research" ? "text-emerald-700 font-bold" : "text-gray-500"}`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Research</span>
+        </button>
+        <button 
+          onClick={() => switchTab("media")} 
+          className={`flex flex-col items-center gap-1 p-2 text-xs font-semibold rounded-lg transition-colors ${activeTab === "media" ? "text-emerald-700 font-bold" : "text-gray-500"}`}
+        >
+          <Video className="w-4 h-4" />
+          <span>Media</span>
+        </button>
+      </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* SIDEBAR NAVIGATION UTILITY */}
@@ -435,6 +494,26 @@ export default function UnifiedAdminPortal() {
         <main className="flex-1 overflow-y-auto p-6 md:p-10">
           <div className="max-w-4xl mx-auto">
             
+            {/* Responsive stats summary at the top of main content */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 md:hidden">
+              <div className="bg-white border rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Registered</p>
+                <p className="text-sm font-bold text-gray-900 mt-0.5">{userStats.total_users}</p>
+              </div>
+              <div className="bg-white border rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Active Users</p>
+                <p className="text-sm font-bold text-emerald-600 mt-0.5">{userStats.active_users}</p>
+              </div>
+              <div className="bg-white border rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Papers</p>
+                <p className="text-sm font-bold text-blue-600 mt-0.5">{contentStats.research_papers}</p>
+              </div>
+              <div className="bg-white border rounded-xl p-3 text-center shadow-sm">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Media</p>
+                <p className="text-sm font-bold text-blue-600 mt-0.5">{contentStats.media_processed}</p>
+              </div>
+            </div>
+
             {/* TAB SECTION A: BLOG WORKFLOW ARRAY */}
             {activeTab === "blogs" && (
               <>
@@ -630,7 +709,7 @@ export default function UnifiedAdminPortal() {
 
                       <button
                         type="submit"
-                        disabled={!uploadingFile || isUploading}
+                        disabled={!uploadingFile || !docDescription.trim() || isUploading}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg shadow-sm disabled:opacity-40 flex items-center justify-center gap-2 transition-all"
                       >
                         {isUploading ? (

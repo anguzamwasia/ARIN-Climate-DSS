@@ -21,6 +21,41 @@ class UserCreate(BaseModel):
     email: str
     password: str
 
+class PasswordReset(BaseModel):
+    email: str
+    new_password: str
+
+def send_simulated_email(to_email: str, subject: str, body: str):
+    print(f"\n==================================================")
+    print(f"[EMAIL SIMULATOR] Sending email to: {to_email}")
+    print(f"Subject: {subject}")
+    print(f"Body:\n{body}")
+    print(f"==================================================\n")
+
+@router.post("/api/v1/auth/reset-password")
+def reset_password(payload: PasswordReset, db: Session = Depends(get_db)):
+    if not is_valid_email(payload.email):
+        raise HTTPException(status_code=400, detail="The email format is invalid")
+        
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The email address is not registered"
+        )
+        
+    hashed_password = get_password_hash(payload.new_password)
+    user.hashed_password = hashed_password
+    db.commit()
+    
+    send_simulated_email(
+        to_email=payload.email,
+        subject="ARIN Climate DSS Password Reset",
+        body=f"Hello {user.name},\n\nYour password has been successfully reset. If you did not make this request, please contact an administrator."
+    )
+    
+    return {"status": "success", "message": "Password updated successfully"}
+
 class Token(BaseModel):
     access_token: str
     token_type: str
