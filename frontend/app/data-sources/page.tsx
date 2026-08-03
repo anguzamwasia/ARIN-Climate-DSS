@@ -443,7 +443,7 @@ function DataSourcesContent() {
                     {getCategory(doc.source, doc.country) === "Community Insights" ? getMediaMetadata(doc.title, doc.body || "").title : doc.title}
                   </h3>
                   
-                  {(getCategory(doc.source, doc.country) === "Community Insights" || doc.source === "KOBO") && doc.body && (
+                  {doc.body && (
                      <p className="text-xs text-muted-foreground line-clamp-3 my-2">{doc.body}</p>
                   )}
 
