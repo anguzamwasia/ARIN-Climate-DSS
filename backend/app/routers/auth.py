@@ -44,6 +44,12 @@ def reset_password(payload: PasswordReset, db: Session = Depends(get_db)):
             detail="The email address is not registered"
         )
         
+    if payload.email == "admin@arin-africa.org":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password reset is disabled for administrator accounts."
+        )
+        
     hashed_password = get_password_hash(payload.new_password)
     user.hashed_password = hashed_password
     db.commit()
