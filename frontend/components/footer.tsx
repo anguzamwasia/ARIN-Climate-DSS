@@ -13,13 +13,6 @@ const footerLinks = {
   resources: [
     { label: "AI Assistant", href: "/chatbot" },
     { label: "Submit Blog", href: "/blog/submit" },
-    { label: "Documentation", href: "#" },
-    { label: "Support", href: "#" },
-  ],
-  legal: [
-    { label: "Privacy Policy", href: "#" },
-    { label: "Terms of Service", href: "#" },
-    { label: "Cookie Policy", href: "#" },
   ],
 }
 
@@ -34,8 +27,8 @@ export function Footer() {
   return (
     <footer className="bg-primary text-white">
       {/* Main Footer */}
-      <div className="container mx-auto px-4 lg:px-8 py-16">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12">
+      <div className="container mx-auto px-4 lg:px-8 py-10">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center mb-6">
@@ -131,7 +124,7 @@ export function Footer() {
 
       {/* Bottom Bar */}
       <div className="border-t border-white/10">
-        <div className="container mx-auto px-4 lg:px-8 py-6">
+        <div className="container mx-auto px-4 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-white/50 text-sm">
               © {new Date().getFullYear()} ARIN. All rights reserved.
@@ -147,17 +140,6 @@ export function Footer() {
                 Africa Research and Impact Network
               </a>
             </p>
-            <div className="flex items-center gap-4">
-              {footerLinks.legal.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="text-white/50 hover:text-accent transition-colors text-sm"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
           </div>
         </div>
       </div>
