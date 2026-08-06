@@ -14,7 +14,7 @@ const features = [
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-primary">
+    <section className="relative min-h-[70vh] lg:min-h-[75vh] flex items-center overflow-hidden bg-primary py-8 lg:py-12">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{
@@ -23,32 +23,10 @@ export function HeroSection() {
       </div>
 
       {/* Animated Gradient Orbs */}
-      <motion.div
-        className="absolute top-1/4 -left-32 w-96 h-96 bg-accent/20 rounded-full blur-3xl"
-        animate={{
-          x: [0, 50, 0],
-          y: [0, 30, 0],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
-      <motion.div
-        className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent/15 rounded-full blur-3xl"
-        animate={{
-          x: [0, -50, 0],
-          y: [0, -30, 0],
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-accent/20 rounded-full blur-3xl" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent/15 rounded-full blur-3xl" />
 
-      <div className="container mx-auto px-4 lg:px-8 relative z-10 pt-24 lg:pt-32">
+      <div className="container mx-auto px-4 lg:px-8 relative z-10 pt-16 lg:pt-20">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Content */}
           <motion.div
@@ -68,19 +46,19 @@ export function HeroSection() {
               <span className="text-sm text-white/90 font-medium">AI-Powered Climate Intelligence</span>
             </motion.div>
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white leading-tight mb-6">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight mb-4">
               Transforming{" "}
               <span className="text-accent">Climate Data</span>
               <br />
               Into Action
             </h1>
 
-            <p className="text-lg lg:text-xl text-white/70 mb-8 max-w-xl mx-auto lg:mx-0">
+            <p className="text-base lg:text-lg text-white/70 mb-6 max-w-xl mx-auto lg:mx-0">
               An extensible AI-driven end-to-end climate data processing pipeline delivering real-time insights for sustainable development across Africa.
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
               <Button
                 size="lg"
                 className="bg-accent hover:bg-accent/90 text-accent-foreground text-base px-8"
@@ -118,23 +96,12 @@ export function HeroSection() {
             className="relative hidden lg:block"
           >
             <div className="relative w-full aspect-square max-w-[400px] mx-auto">
-              {/* Central Hub */}
-              <motion.div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-accent flex items-center justify-center shadow-2xl shadow-accent/30"
-                animate={{
-                  scale: [1, 1.05, 1],
-                }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              >
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-accent flex items-center justify-center shadow-2xl shadow-accent/30">
                 <div className="text-center text-white">
                   <div className="text-xl font-bold">DSS</div>
                   <div className="text-[10px] opacity-80 uppercase tracking-wider mt-0.5">ARIN AI</div>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Orbiting Elements */}
               {[
@@ -143,22 +110,13 @@ export function HeroSection() {
                 { angle: 90, icon: Bot, label: "ARIN AI", delay: 1, href: null },
                 { angle: 180, icon: Users, label: "Users", delay: 1.5, href: null },
               ].map((item, index) => (
-                <motion.div
+                <div
                   key={index}
                   className="absolute w-16 h-16"
                   style={{
                     top: `${50 + 40 * Math.sin((item.angle * Math.PI) / 180)}%`,
                     left: `${50 + 40 * Math.cos((item.angle * Math.PI) / 180)}%`,
                     transform: "translate(-50%, -50%)",
-                  }}
-                  animate={{
-                    y: [0, -10, 0],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    delay: item.delay,
-                    ease: "easeInOut",
                   }}
                 >
                   {item.href ? (
@@ -172,7 +130,7 @@ export function HeroSection() {
                       <span className="text-xs text-white/80">{item.label}</span>
                     </div>
                   )}
-                </motion.div>
+                </div>
               ))}
 
               {/* Connection Lines */}
@@ -192,20 +150,11 @@ export function HeroSection() {
         </div>
       </div>
 
-      {/* Scroll Indicator */}
-      <motion.div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
-        animate={{ y: [0, 10, 0] }}
-        transition={{ duration: 2, repeat: Infinity }}
-      >
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
         <div className="w-6 h-10 rounded-full border-2 border-white/30 flex items-start justify-center pt-2">
-          <motion.div
-            className="w-1.5 h-3 rounded-full bg-accent"
-            animate={{ y: [0, 12, 0], opacity: [1, 0, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
+          <div className="w-1.5 h-3 rounded-full bg-accent" />
         </div>
-      </motion.div>
+      </div>
     </section>
   )
 }
