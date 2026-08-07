@@ -4,17 +4,18 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import SessionLocal
-from app.models.document import Document
 from app.models.blog import Blog
 
 db = SessionLocal()
 
-print("ALL DOCUMENTS IN DB:")
-for d in db.query(Document).all():
-    print(f"ID={d.id}, Title={d.title}")
-
-print("\nALL BLOGS IN DB:")
-for b in db.query(Blog).all():
-    print(f"ID={b.id}, Title={b.title}, Author={b.author_name}, Status={b.status}")
+print("Deleting test blog...")
+blog = db.query(Blog).filter(Blog.id == 13).first()
+if blog:
+    print(f"Deleting blog: ID={blog.id}, Title={blog.title}")
+    db.delete(blog)
+    db.commit()
+    print("Deleted successfully.")
+else:
+    print("Blog ID 13 not found.")
 
 db.close()
