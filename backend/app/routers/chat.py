@@ -1,28 +1,33 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from sqlalchemy.orm import Session
 import os
 import chromadb
 from openai import OpenAI
 import re
-from app.database import SessionLocal
+import uuid
+import datetime
+
+from app.database import get_db, SessionLocal
 from app.models.document import Document
+from app.models.feedback import ChatbotFeedback
+from app.models.user import User
+from app.models.chat import ChatThread, ChatMessage
+from app.auth import get_current_user
+
+from app.schemas.chat import (
+    ChatRequest, ChatResponse, FeedbackRequest,
+    ChatThreadCreate, ChatThreadOut, ChatMessageOut
+)
 
 router = APIRouter()
 
-from app.schemas.chat import ChatRequest, ChatResponse, FeedbackRequest
-from app.models.feedback import ChatbotFeedback
 # Initialize chromadb client once at module level
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="climate_docs")
 
-@router.post("/chat")
-def chat_with_data(req: ChatRequest):
-    if not req.question:
-        return {"answer": "No message provided.", "sources": []}
-
+def generate_ai_response(question: str, db: Session) -> dict:
     # Fetch recent chatbot feedback to learn from it dynamically
     feedback_instructions = ""
-    db = SessionLocal()
     try:
         # Get recent negative feedback (thumbs down) so the model avoids these styles/mistakes
         neg_feedback = db.query(ChatbotFeedback).filter(ChatbotFeedback.rating == -1).order_by(ChatbotFeedback.created_at.desc()).limit(5).all()
@@ -41,8 +46,6 @@ def chat_with_data(req: ChatRequest):
                 feedback_instructions += f"--- User Question: {f.question}\n--- Your Approved Response: {f.response}\n\n"
     except Exception as fe_err:
         print(f"Failed to query chatbot feedback: {fe_err}")
-    finally:
-        db.close()
         
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -55,17 +58,15 @@ def chat_with_data(req: ChatRequest):
     source_titles = []
 
     # 1. DIRECT DOCUMENT MATCHING: Check if user asked for a specific document by name
-    db = SessionLocal()
     try:
         for db_doc in db.query(Document).all():
             if db_doc.title:
                 clean_title = db_doc.title.lower().replace(".pdf", "").replace(".docx", "").replace(".csv", "").strip()
-                if clean_title and len(clean_title) > 3 and clean_title in req.question.lower():
+                if clean_title and len(clean_title) > 3 and clean_title in question.lower():
                     doc_text = db_doc.content_text or db_doc.body or ""
                     if doc_text:
                         disp_title = re.sub(r'(?i)\.(docx|pdf|csv|xlsx|mp4|mp3|wav|m4a|txt)$', '', db_doc.title).strip()
                         context_text += f"\n--- {disp_title} ---\n{doc_text[:20000]}\n"
-                        doc_url = db_doc.url or db_doc.file_url or "#"
                         doc_url = db_doc.url or db_doc.file_url or "#"
                         if not any(s["title"] == disp_title for s in source_titles):
                             source_titles.append({"title": disp_title, "url": doc_url})
@@ -76,46 +77,42 @@ def chat_with_data(req: ChatRequest):
         for blog in approved_blogs:
             if blog.get('title'):
                 clean_title = str(blog['title']).lower().strip()
-                if clean_title and len(clean_title) > 3 and clean_title in req.question.lower():
+                if clean_title and len(clean_title) > 3 and clean_title in question.lower():
                     blog_text = f"{blog.get('summary', '')} {blog.get('background', '')} {blog.get('findings', '')} {blog.get('implications', '')} {blog.get('narrative', '')} {blog.get('impact', '')}"
                     if blog_text.strip():
                         context_text += f"\n--- [User Blog] {blog['title']} ---\n{blog_text[:15000]}\n"
                         if not any(s["title"] == blog['title'] for s in source_titles):
                             source_titles.append({"title": str(blog['title']), "url": "/blogs"})
                             
-    finally:
-        db.close()
+    except Exception as doc_err:
+        print(f"Failed to match direct documents/blogs: {doc_err}")
 
     # 2. SEMANTIC SEARCH: Query ChromaDB for top 40 semantically similar documents
     results = collection.query(
-        query_texts=[req.question],
+        query_texts=[question],
         n_results=40
     )
     
     if results and "documents" in results and results["documents"] and len(results["documents"][0]) > 0:
         docs = results["documents"][0]
         metas = results["metadatas"][0] if "metadatas" in results and results["metadatas"] else []
-        db = SessionLocal()
-        try:
-            for i, doc in enumerate(docs):
-                meta = metas[i] if i < len(metas) else {}
-                title = meta.get("title", f"Document {i+1}")
-                clean_title = re.sub(r'(?i)(\s*[:-]\s*Sequence\s*\d+.*)', '', title).strip()
-                # Remove file extensions for cleaner citations
-                clean_title = re.sub(r'(?i)\.(docx|pdf|csv|xlsx|mp4|mp3|wav|m4a|txt)$', '', clean_title).strip()
-                doc_url = "#"
-                
-                original_id = meta.get("original_id")
-                if original_id:
-                    db_doc = db.query(Document).filter(Document.id == int(original_id)).first()
-                    if db_doc:
-                        doc_url = db_doc.url or db_doc.file_url or "#"
-                
-                if not any(s["title"] == clean_title for s in source_titles):
-                    source_titles.append({"title": clean_title, "url": doc_url})
-                context_text += f"\n--- {clean_title} ---\n{doc}\n"
-        finally:
-            db.close()
+        for i, doc in enumerate(docs):
+            meta = metas[i] if i < len(metas) else {}
+            title = meta.get("title", f"Document {i+1}")
+            clean_title = re.sub(r'(?i)(\s*[:-]\s*Sequence\s*\d+.*)', '', title).strip()
+            # Remove file extensions for cleaner citations
+            clean_title = re.sub(r'(?i)\.(docx|pdf|csv|xlsx|mp4|mp3|wav|m4a|txt)$', '', clean_title).strip()
+            doc_url = "#"
+            
+            original_id = meta.get("original_id")
+            if original_id:
+                db_doc = db.query(Document).filter(Document.id == int(original_id)).first()
+                if db_doc:
+                    doc_url = db_doc.url or db_doc.file_url or "#"
+            
+            if not any(s["title"] == clean_title for s in source_titles):
+                source_titles.append({"title": clean_title, "url": doc_url})
+            context_text += f"\n--- {clean_title} ---\n{doc}\n"
     elif not context_text:
         return {
             "answer": "I don't have any training data loaded yet! Please run the data embedding script.",
@@ -143,9 +140,8 @@ CRITICAL INSTRUCTIONS:
 Context:
 {context_text}
 
-User Question: {req.question}
+User Question: {question}
 """
-        import time
         max_retries = 5
         retry_delay = 3
         response = None
@@ -160,6 +156,7 @@ User Question: {req.question}
             except Exception as e:
                 if ("503" in str(e) or "429" in str(e)) and attempt < max_retries - 1:
                     print(f"OpenAI API Error (Attempt {attempt+1}/{max_retries}). Retrying in {retry_delay}s...")
+                    import time
                     time.sleep(retry_delay)
                     retry_delay *= 1.5
                 else:
@@ -171,13 +168,12 @@ User Question: {req.question}
         # Embed user question & AI synthesized insight into ChromaDB so the chatbot continuously learns from past interactions
         if answer_content and len(answer_content) > 50 and "I don't have" not in answer_content:
             try:
-                import uuid
                 qa_id = f"qa_{uuid.uuid4().hex[:8]}"
-                qa_text = f"Prior Inquiry: {req.question}\nSynthesized Knowledge & Insight: {answer_content[:2000]}"
+                qa_text = f"Prior Inquiry: {question}\nSynthesized Knowledge & Insight: {answer_content[:2000]}"
                 collection.upsert(
                     documents=[qa_text],
                     metadatas=[{
-                        "title": f"Learned Insight: {req.question[:50]}",
+                        "title": f"Learned Insight: {question[:50]}",
                         "source": "ARIN AI Memory",
                         "country": "Africa (Global)"
                     }],
@@ -193,7 +189,6 @@ User Question: {req.question}
             url = s.get("url") or "#"
             if url == "#" or not url:
                 continue
-            # Also check if part of the title is in the answer in case LLM slightly altered it
             title_words = s["title"].split()
             if s["title"] in answer_content or (len(title_words) > 3 and " ".join(title_words[:4]) in answer_content):
                 norm = re.sub(r'[\s_\-]+', ' ', s["title"].lower()).strip()
@@ -207,6 +202,16 @@ User Question: {req.question}
         err_trace = traceback.format_exc()
         print(f"OpenAI API Error: {e}\n{err_trace}")
         return {"answer": "Sorry, I ran into an error trying to process that with the AI model. (The API might be experiencing heavy load. Please wait 10 seconds and try again).", "sources": []}
+
+@router.post("/chat")
+def chat_with_data(req: ChatRequest):
+    if not req.question:
+        return {"answer": "No message provided.", "sources": []}
+    db = SessionLocal()
+    try:
+        return generate_ai_response(req.question, db)
+    finally:
+        db.close()
 
 @router.post("/chat/feedback")
 def chatbot_feedback(req: FeedbackRequest):
@@ -233,3 +238,153 @@ def chatbot_feedback(req: FeedbackRequest):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+# DATABASE PERSISTENCE ENDPOINTS
+
+@router.get("/chat/threads", response_model=list[ChatThreadOut])
+def get_user_chat_threads(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return db.query(ChatThread).filter(ChatThread.user_id == current_user.id).order_by(ChatThread.updated_at.desc()).all()
+
+@router.post("/chat/threads", response_model=ChatThreadOut)
+def create_chat_thread(
+    req: ChatThreadCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    new_thread = ChatThread(
+        id=uuid.uuid4().hex,
+        title=req.title,
+        user_id=current_user.id
+    )
+    db.add(new_thread)
+    db.commit()
+    db.refresh(new_thread)
+    return new_thread
+
+@router.delete("/chat/threads/{thread_id}")
+def delete_chat_thread(
+    thread_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    thread = db.query(ChatThread).filter(
+        ChatThread.id == thread_id,
+        ChatThread.user_id == current_user.id
+    ).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    db.delete(thread)
+    db.commit()
+    return {"status": "success", "message": "Chat session deleted"}
+
+@router.get("/chat/threads/{thread_id}/messages", response_model=list[ChatMessageOut])
+def get_chat_messages(
+    thread_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Verify thread ownership
+    thread = db.query(ChatThread).filter(
+        ChatThread.id == thread_id,
+        ChatThread.user_id == current_user.id
+    ).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    return db.query(ChatMessage).filter(ChatMessage.thread_id == thread_id).order_by(ChatMessage.created_at.asc()).all()
+
+@router.post("/chat/threads/{thread_id}/messages", response_model=ChatMessageOut)
+def post_chat_message(
+    thread_id: str,
+    req: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if not req.question:
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+        
+    thread = db.query(ChatThread).filter(
+        ChatThread.id == thread_id,
+        ChatThread.user_id == current_user.id
+    ).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+        
+    # 1. Insert user message
+    user_msg = ChatMessage(
+        thread_id=thread_id,
+        role="user",
+        content=req.question.strip()
+    )
+    db.add(user_msg)
+    
+    # Update thread's updated_at timestamp
+    thread.updated_at = datetime.datetime.utcnow()
+    
+    # If this is the first message in the thread, update the title
+    # based on the question
+    msg_count = db.query(ChatMessage).filter(ChatMessage.thread_id == thread_id).count()
+    if msg_count == 0 or thread.title == "New Chat":
+        thread.title = req.question.strip()[:35] + ("..." if len(req.question.strip()) > 35 else "")
+        
+    db.commit()
+    
+    # 2. Get AI response
+    ai_res = generate_ai_response(req.question.strip(), db)
+    
+    # 3. Insert assistant message
+    assistant_msg = ChatMessage(
+        thread_id=thread_id,
+        role="assistant",
+        content=ai_res["answer"],
+        sources=ai_res["sources"]
+    )
+    db.add(assistant_msg)
+    
+    # Update thread's updated_at timestamp again
+    thread.updated_at = datetime.datetime.utcnow()
+    
+    db.commit()
+    db.refresh(assistant_msg)
+    
+    return assistant_msg
+
+@router.post("/chat/messages/{message_id}/feedback")
+def submit_message_feedback(
+    message_id: int,
+    req: FeedbackRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Verify message ownership
+    msg = db.query(ChatMessage).join(ChatThread).filter(
+        ChatMessage.id == message_id,
+        ChatThread.user_id == current_user.id
+    ).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+        
+    # Update rating
+    msg.rating = req.rating
+    db.commit()
+    
+    # Also record in feedback table for LLM learning
+    existing = db.query(ChatbotFeedback).filter(
+        ChatbotFeedback.question == req.question,
+        ChatbotFeedback.response == req.response,
+        ChatbotFeedback.rating == req.rating
+    ).first()
+    
+    if not existing:
+        new_feedback = ChatbotFeedback(
+            question=req.question,
+            response=req.response,
+            rating=req.rating
+        )
+        db.add(new_feedback)
+        db.commit()
+        
+    return {"status": "success", "message": "Feedback submitted successfully."}

@@ -3,4 +3,5 @@ from .document import Document
 from .blog import Blog
 from .kobo import KoboSubmission
 from .feedback import ChatbotFeedback
+from .chat import ChatThread, ChatMessage
 
