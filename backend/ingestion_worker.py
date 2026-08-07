@@ -51,8 +51,8 @@ if __name__ == "__main__":
     sync_kobo()
     sync_media()
     
-    # Schedule Media Scanner every 10 minutes
-    scheduler.add_job(sync_media, 'interval', minutes=10)
+    # Schedule Media Scanner every 2 minutes
+    scheduler.add_job(sync_media, 'interval', minutes=2)
     
     # Schedule Kobo every 1 minute
     scheduler.add_job(sync_kobo, 'interval', minutes=1)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     
     print("Started Ingestion Worker!")
     print(" - Polling KoboToolbox every 1 minute")
-    print(" - Scanning Media Uploads every 10 minutes")
+    print(" - Scanning Media Uploads every 2 minutes")
     print(" - Polling Web Scrapers twice a week (Mon, Thu)")
     
     try:

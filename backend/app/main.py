@@ -22,6 +22,14 @@ async def lifespan(app: FastAPI):
         print("Scheduler: KoboToolbox sync registered successfully.")
     except Exception as e:
         print(f"Scheduler Warning: Failed to register KoboToolbox sync: {e}")
+
+    # Schedule media auto-transcription to run every 2 minutes
+    try:
+        from auto_transcribe import auto_transcribe_new_media
+        scheduler.add_job(auto_transcribe_new_media, 'interval', minutes=2)
+        print("Scheduler: Media auto-transcription registered successfully.")
+    except Exception as e:
+        print(f"Scheduler Warning: Failed to register Media auto-transcription: {e}")
         
     scheduler.start()
     yield

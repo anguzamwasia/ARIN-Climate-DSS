@@ -128,6 +128,52 @@ export default function UnifiedAdminPortal() {
   const [uploadMessage, setUploadMessage] = useState("")
   const [localHistory, setLocalHistory] = useState<LocalMediaLog[]>([])
 
+  const fetchUploadHistory = async () => {
+    try {
+      const docRes = await fetch(`${API_URL}/documents?source=ARIN&limit=100`)
+      let docsData: any[] = []
+      if (docRes.ok) {
+        docsData = await docRes.json()
+      }
+
+      const mediaRes = await fetch(`${API_URL}/documents?source=WHISPER&limit=100`)
+      let mediaData: any[] = []
+      if (mediaRes.ok) {
+        mediaData = await mediaRes.json()
+      }
+
+      const mappedDocs: LocalMediaLog[] = docsData.map((d: any) => ({
+        id: d.id.toString(),
+        originalName: d.title,
+        timestamp: d.scraped_at || new Date().toISOString(),
+        status: "completed",
+        type: "document"
+      }))
+
+      const mappedMedia: LocalMediaLog[] = mediaData.map((m: any) => {
+        let title = m.title || ""
+        let cleanName = title.replace(/^Transcript:\s*/i, "")
+        cleanName = cleanName.replace(/^(admin_\d+_|kobo_\d+_)/i, "")
+        const fileType = cleanName.toLowerCase().endsWith(".mp4") ? "video" : "audio"
+        return {
+          id: m.id.toString(),
+          originalName: cleanName,
+          timestamp: m.scraped_at || new Date().toISOString(),
+          status: "completed" as const,
+          type: fileType as any
+        }
+      })
+
+      const combined = [...mappedDocs, ...mappedMedia].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+
+      setLocalHistory(combined)
+    } catch (err) {
+      console.error("Failed to fetch upload history", err)
+    }
+  }
+
   useEffect(() => {
     fetchBlogs()
   }, [])
@@ -136,25 +182,9 @@ export default function UnifiedAdminPortal() {
     if (token) {
       fetchUserStats()
       fetchContentStats()
+      fetchUploadHistory()
     }
   }, [token])
-
-  useEffect(() => {
-
-    const savedMedia = localStorage.getItem("arin_processed_media_logs")
-    if (savedMedia) {
-      // Filter out the old hardcoded mock data so it doesn't persist for returning users
-      const parsed = JSON.parse(savedMedia)
-      const filtered = parsed.filter((log: LocalMediaLog) => log.originalName !== "KII_Uasin_Gishu_Crop_Yield_Interview.mp3")
-      setLocalHistory(filtered)
-      localStorage.setItem("arin_processed_media_logs", JSON.stringify(filtered))
-    } else {
-      // Seed default baseline views for interface tracking layout validation
-      const initialLogs: LocalMediaLog[] = []
-      setLocalHistory(initialLogs)
-      localStorage.setItem("arin_processed_media_logs", JSON.stringify(initialLogs))
-    }
-  }, [])
 
   // Filter lists dynamically
   const pendingBlogs = allBlogs.filter((b) => b.status === "pending")
@@ -287,28 +317,23 @@ export default function UnifiedAdminPortal() {
       const data = await response.json()
       
       const fileType = uploadingFile.name.toLowerCase().endsWith(".mp4") ? "video" : "audio"
+      const tempId = Math.random().toString(36).substr(2, 9)
       const newLog: LocalMediaLog = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: tempId,
         originalName: uploadingFile.name,
         timestamp: new Date().toISOString(),
         status: "processing",
         type: fileType as any
       }
       
-      const updatedHistory = [newLog, ...localHistory]
-      setLocalHistory(updatedHistory)
-      localStorage.setItem("arin_processed_media_logs", JSON.stringify(updatedHistory))
+      setLocalHistory(prev => [newLog, ...prev])
 
       setUploadMessage(`🚀 Asset received! Processing local Whisper transcription on background threads.`)
       setUploadingFile(null)
 
       setTimeout(() => {
-        const completedHistory = updatedHistory.map(log => 
-          log.id === newLog.id ? { ...log, status: "completed" as const } : log
-        )
-        setLocalHistory(completedHistory)
-        localStorage.setItem("arin_processed_media_logs", JSON.stringify(completedHistory))
-      }, 8000)
+        fetchUploadHistory()
+      }, 15000)
 
     } catch (err: any) {
       setUploadMessage(`❌ Ingest process termination failure: ${err.message || err}`)
@@ -346,21 +371,10 @@ export default function UnifiedAdminPortal() {
         throw new Error(errData.detail || "Server rejected document ingestion.")
       }
       
-      const newLog: LocalMediaLog = {
-        id: Math.random().toString(36).substr(2, 9),
-        originalName: uploadingFile.name,
-        timestamp: new Date().toISOString(),
-        status: "completed",
-        type: "document"
-      }
-      
-      const updatedHistory = [newLog, ...localHistory]
-      setLocalHistory(updatedHistory)
-      localStorage.setItem("arin_processed_media_logs", JSON.stringify(updatedHistory))
-
       setUploadMessage(`✅ Research paper received and stored successfully!`)
       setUploadingFile(null)
       setDocDescription("")
+      fetchUploadHistory()
 
     } catch (err: any) {
       setUploadMessage(`❌ Document ingest failure: ${err.message || err}`)
