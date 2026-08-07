@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ChevronLeft, User, BookMarked, Search } from "lucide-react"
+import { ChevronLeft, User, BookMarked, Search, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -30,6 +30,7 @@ function stripHtml(html?: string) {
 export default function PublicBlogsPage() {
   const [blogs, setBlogs] = useState<Blog[]>([])
   const [search, setSearch] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const fetchBlogs = async () => {
@@ -57,10 +58,26 @@ export default function PublicBlogsPage() {
           }))
           setBlogs(mapped)
         }
-      } catch (err) {}
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setIsLoading(false)
+      }
     }
     fetchBlogs()
   }, [])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center pt-24">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    )
+  }
 
   const filteredBlogs = blogs.filter(b => 
     b.title.toLowerCase().includes(search.toLowerCase()) || 
