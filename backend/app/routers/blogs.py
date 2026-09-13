@@ -37,11 +37,21 @@ def send_simulated_email(to_email: str, subject: str, body: str):
     print(f"==================================================\n")
 
 @router.get("/blogs")
-def list_blogs(status: Optional[str] = None, db: Session = Depends(get_db)):
+def list_blogs(status: Optional[str] = None, author_email: Optional[str] = None, db: Session = Depends(get_db)):
+    query = "SELECT * FROM blogs"
+    conditions = []
+    params = {}
     if status:
-        rows = db.execute(text("SELECT * FROM blogs WHERE status = :status ORDER BY submitted_at DESC"), {"status": status}).mappings().all()
-    else:
-        rows = db.execute(text("SELECT * FROM blogs ORDER BY submitted_at DESC")).mappings().all()
+        conditions.append("status = :status")
+        params["status"] = status
+    if author_email:
+        conditions.append("LOWER(author_email) = :author_email")
+        params["author_email"] = author_email.strip().lower()
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY submitted_at DESC"
+    rows = db.execute(text(query), params).mappings().all()
     return [dict(r) for r in rows]
 
 @router.get("/blogs/{blog_id}")
@@ -54,25 +64,76 @@ def get_blog(blog_id: int, db: Session = Depends(get_db)):
 
 @router.post("/blogs")
 def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
-    # Duplication check
-    existing = db.execute(text("SELECT id FROM blogs WHERE title = :title"), {"title": blog.title}).mappings().first()
-    if existing:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="A blog submission with this title already exists.")
-
     new_status = blog.status or 'pending'
+    author_email_clean = blog.author_email.strip().lower() if blog.author_email else None
+
+    # Duplication check
+    existing = db.execute(text("SELECT id, status, author_email FROM blogs WHERE title = :title"), {"title": blog.title}).mappings().first()
+    if existing:
+        existing_author = existing.get('author_email')
+        existing_author_clean = existing_author.strip().lower() if existing_author else None
+        
+        # If the existing record is a draft by the same author, update it directly rather than failing
+        if existing['status'] == 'draft' and author_email_clean and existing_author_clean == author_email_clean:
+            existing_id = existing['id']
+            db.execute(text("""
+                UPDATE blogs 
+                SET title = :title, author_name = :author_name, post_type = :post_type, 
+                    summary = :summary, background = :background, findings = :findings, 
+                    implications = :implications, narrative = :narrative, impact = :impact, 
+                    sources = :sources, image_url = :image_url, status = :status, 
+                    submitted_at = :submitted_at, author_email = :author_email
+                WHERE id = :id
+            """), {
+                **blog.dict(exclude={'edited_by_admin', 'status'}),
+                "status": new_status,
+                "submitted_at": datetime.utcnow(),
+                "author_email": author_email_clean,
+                "id": existing_id
+            })
+            db.commit()
+            
+            if new_status != "draft" and author_email_clean:
+                send_simulated_email(
+                    to_email=author_email_clean,
+                    subject="Climate Submission Received",
+                    body=f"Hello {blog.author_name},\n\nYour submission '{blog.title}' has been successfully received and is currently under review."
+                )
+                db.execute(text("""
+                    INSERT INTO notifications (user_email, title, message, is_read, created_at)
+                    VALUES (:email, :title, :message, FALSE, :now)
+                """), {
+                    "email": author_email_clean,
+                    "title": "Submission Received",
+                    "message": f"Your work '{blog.title}' has been received and is under review.",
+                    "now": datetime.utcnow()
+                })
+                db.commit()
+
+            return {
+                "message": "Blog draft saved" if new_status == "draft" else "Blog submitted for review",
+                "id": existing_id
+            }
+        else:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="A blog submission with this title already exists.")
 
     res = db.execute(text("""
         INSERT INTO blogs (title, author_name, post_type, summary, background, findings, implications, narrative, impact, sources, image_url, status, submitted_at, author_email, edited_by_admin)
         VALUES (:title, :author_name, :post_type, :summary, :background, :findings, :implications, :narrative, :impact, :sources, :image_url, :status, :submitted_at, :author_email, FALSE)
         RETURNING id
-    """), {**blog.dict(exclude={'edited_by_admin', 'status'}), "status": new_status, "submitted_at": datetime.utcnow()})
+    """), {
+        **blog.dict(exclude={'edited_by_admin', 'status'}),
+        "status": new_status,
+        "submitted_at": datetime.utcnow(),
+        "author_email": author_email_clean
+    })
     new_id = res.fetchone()[0]
     db.commit()
 
-    if new_status != "draft" and blog.author_email:
+    if new_status != "draft" and author_email_clean:
         send_simulated_email(
-            to_email=blog.author_email,
+            to_email=author_email_clean,
             subject="Climate Submission Received",
             body=f"Hello {blog.author_name},\n\nYour submission '{blog.title}' has been successfully received and is currently under review."
         )
@@ -80,7 +141,7 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
             INSERT INTO notifications (user_email, title, message, is_read, created_at)
             VALUES (:email, :title, :message, FALSE, :now)
         """), {
-            "email": blog.author_email,
+            "email": author_email_clean,
             "title": "Submission Received",
             "message": f"Your work '{blog.title}' has been received and is under review.",
             "now": datetime.utcnow()
@@ -94,11 +155,16 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
 
 @router.put("/blogs/{blog_id}")
 def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
-    # Duplication check
-    existing = db.execute(text("SELECT id FROM blogs WHERE title = :title AND id != :id"), {"title": blog.title, "id": blog_id}).mappings().first()
+    # Duplication check (ignore self)
+    existing = db.execute(text("SELECT id, status, author_email FROM blogs WHERE title = :title AND id != :id"), {"title": blog.title, "id": blog_id}).mappings().first()
     if existing:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="A blog submission with this title already exists.")
+        existing_author = existing.get('author_email')
+        existing_author_clean = existing_author.strip().lower() if existing_author else None
+        current_author_clean = blog.author_email.strip().lower() if blog.author_email else None
+        # Only block if it conflicts with another user or an active submission
+        if existing['status'] != 'draft' or existing_author_clean != current_author_clean:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Another blog submission with this title already exists.")
 
     row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
     if not row:

@@ -46,7 +46,7 @@ const formTemplates = {
   research: [
     { id: "title", label: "Blog Title", type: "input", placeholder: "Enter a descriptive title for your research findings", required: true },
     { id: "authorName", label: "Author / Investigator Name", type: "input", placeholder: "Enter full name or organization", required: true },
-    { id: "imageFile", label: "Blog Cover Image (Optional)", type: "file", placeholder: "Select a PNG or JPEG picture", required: false },
+    { id: "imageFile", label: "Blog Cover Image (Optional — up to 3MB only)", type: "file", placeholder: "Select a PNG or JPEG picture (max 3MB)", required: false },
     { id: "summary", label: "Executive Summary", type: "textarea", placeholder: "Provide a brief abstract summary of your post (2-3 sentences)", required: true, rows: 3 },
     { id: "background", label: "Background & Context", type: "textarea", placeholder: "Describe the environmental or climate issue background", required: true, rows: 4 },
     { id: "findings", label: "Key Findings & Data Points", type: "textarea", placeholder: "Present your main observations or raw data analysis notes", required: true, rows: 6 },
@@ -56,7 +56,7 @@ const formTemplates = {
   story: [
     { id: "title", label: "Story Title", type: "input", placeholder: "Give your climate narrative an engaging headline", required: true },
     { id: "authorName", label: "Storyteller Name", type: "input", placeholder: "Your name, community designation, or project role", required: true },
-    { id: "imageFile", label: "Cover Photo (Optional)", type: "file", placeholder: "Select a PNG or JPEG picture", required: false },
+    { id: "imageFile", label: "Cover Photo (Optional — up to 3MB only)", type: "file", placeholder: "Select a PNG or JPEG picture (max 3MB)", required: false },
     { id: "summary", label: "The Premise (Brief Intro)", type: "textarea", placeholder: "What is this story about? Introduce the location and community", required: true, rows: 3 },
     { id: "narrative", label: "The Journey / Community Narrative", type: "textarea", placeholder: "Share your human interest story, lived experience, or community changes over time", required: true, rows: 6 },
     { id: "impact", label: "Lessons Learned & Local Impacts", type: "textarea", placeholder: "What did this experience teach you? What can others learn from this?", required: true, rows: 4 },
@@ -79,10 +79,15 @@ export default function BlogSubmitPage() {
   const [showComparison, setShowComparison] = useState<Record<string, boolean>>({})
   const [blogActionMessage, setBlogActionMessage] = useState("")
 
+  const MAX_IMAGE_SIZE = 3 * 1024 * 1024 // 3MB in bytes
+
   const fetchBlogs = async () => {
     setIsLoadingBlogs(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs`)
+      const url = user?.email
+        ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs?author_email=${encodeURIComponent(user.email)}`
+        : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs`
+      const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
         // Map snake_case to camelCase and unpack formData
@@ -148,17 +153,58 @@ export default function BlogSubmitPage() {
       return
     }
 
-    const validTypes = ["image/png", "image/jpeg", "image/jpg"]
+    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
     if (!validTypes.includes(file.type)) {
       setImageError("Please upload a valid image file (.png, .jpg, or .jpeg).")
       setUploadedImageBase64(null)
       return
     }
 
+    if (file.size > MAX_IMAGE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+      setImageError(`Image size is ${sizeMB}MB, which exceeds the 3MB limit. Please select an image up to 3MB only.`)
+      setUploadedImageBase64(null)
+      e.target.value = ""
+      return
+    }
+
     setImageError(null)
+
+    // Client-side image optimization (max 1200px) so uploads transmit in milliseconds
     const reader = new FileReader()
-    reader.onloadend = () => {
-      setUploadedImageBase64(reader.result as string)
+    reader.onload = (event) => {
+      const img = new window.Image()
+      img.src = event.target?.result as string
+      img.onload = () => {
+        const maxWidth = 1200
+        const maxHeight = 1200
+        let width = img.width
+        let height = img.height
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width)
+            width = maxWidth
+          } else {
+            width = Math.round((width * maxHeight) / height)
+            height = maxHeight
+          }
+        }
+
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height)
+          setUploadedImageBase64(canvas.toDataURL("image/jpeg", 0.82))
+        } else {
+          setUploadedImageBase64(event.target?.result as string)
+        }
+      }
+      img.onerror = () => {
+        setUploadedImageBase64(event.target?.result as string)
+      }
     }
     reader.readAsDataURL(file)
   }
@@ -169,10 +215,11 @@ export default function BlogSubmitPage() {
     setSubmitError(null)
     setSubmittingType(isDraftMode ? "draft" : "submit")
 
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    const fallbackTitle = `Draft: ${postType === 'research' ? 'Research Findings' : 'Community Story'} (${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
+    const resolvedTitle = formData.title?.trim() || fallbackTitle
 
     const payload = {
-      title: formData.title || `Draft - ${postType === 'research' ? 'Research' : 'Story'} - ${new Date().toLocaleString()}`,
+      title: resolvedTitle,
       author_name: formData.authorName || user?.name || "Anonymous Contributor",
       author_email: user?.email || null,
       post_type: postType,
@@ -200,15 +247,26 @@ export default function BlogSubmitPage() {
       })
 
       if (res.ok) {
-        await fetchBlogs()
+        const responseData = await res.json().catch(() => ({}))
+
+        // Background update submission list
+        fetchBlogs()
 
         if (isDraftMode) {
-          setBlogActionMessage("💾 Draft saved successfully!")
-          setTimeout(() => setBlogActionMessage(""), 3000)
-          setActiveTab("status")
-          setFormData({ authorName: user?.name || "" })
-          setUploadedImageBase64(null)
-          setEditingBlogId(null)
+          // If this was a new draft, bind newly created ID to editingBlogId
+          const draftId = !isEditing && responseData?.id ? responseData.id.toString() : editingBlogId
+          if (draftId) {
+            setEditingBlogId(draftId)
+          }
+
+          // If title was auto-generated, reflect it in the form
+          if (!formData.title && resolvedTitle) {
+            setFormData(prev => ({ ...prev, title: resolvedTitle }))
+          }
+
+          setBlogActionMessage(`💾 Draft saved successfully! (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })})`)
+          setTimeout(() => setBlogActionMessage(""), 4000)
+          // Keep user in the editor so they can continue writing without losing form state!
         } else {
           setSubmitSuccess(true)
           setFormData({ authorName: user?.name || "" })
@@ -216,7 +274,7 @@ export default function BlogSubmitPage() {
           setEditingBlogId(null)
         }
       } else {
-        const errorData = await res.json()
+        const errorData = await res.json().catch(() => ({}))
         setSubmitError(errorData.detail || "Failed to save blog. Please check your inputs.")
       }
     } catch (err) {
@@ -370,13 +428,36 @@ export default function BlogSubmitPage() {
                           <div className="flex flex-col gap-2">
                             <input
                               type="file"
-                              accept=".png, .jpg, .jpeg"
+                              accept=".png, .jpg, .jpeg, .webp"
                               onChange={handleFileChange}
                               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
                             />
+                            <p className="text-xs text-muted-foreground">Supported formats: PNG, JPG, JPEG • Maximum image size: <strong>3MB only</strong></p>
+                            
+                            {imageError && (
+                              <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2.5 font-medium flex items-center gap-2 mt-1 shadow-sm">
+                                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                                <span>{imageError}</span>
+                              </div>
+                            )}
+
                             {uploadedImageBase64 && (
-                              <div className="relative w-24 h-24 border rounded-lg overflow-hidden mt-1 bg-gray-50">
-                                <img src={uploadedImageBase64} alt="Preview" className="w-full h-full object-cover" />
+                              <div className="flex items-center gap-3 mt-1.5 p-2 bg-gray-50 border rounded-lg">
+                                <div className="relative w-20 h-20 border rounded-lg overflow-hidden bg-white shadow-sm flex-shrink-0">
+                                  <img src={uploadedImageBase64} alt="Preview" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="text-xs flex flex-col gap-1.5">
+                                  <span className="font-semibold text-emerald-700 flex items-center gap-1">
+                                    <CheckCircle className="w-3.5 h-3.5" /> Cover image attached (within 3MB limit)
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => { setUploadedImageBase64(null); setImageError(null); }}
+                                    className="text-red-600 hover:text-red-800 font-medium underline text-left cursor-pointer"
+                                  >
+                                    Remove image
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -397,12 +478,6 @@ export default function BlogSubmitPage() {
                               className="bg-white"
                             />
                           </div>
-                        )}
-
-                        {section.type === "file" && imageError && (
-                          <p className="text-xs text-red-600 font-medium flex items-center gap-1 mt-1">
-                            <AlertCircle className="w-3.5 h-3.5" /> {imageError}
-                          </p>
                         )}
                       </div>
                     ))}
