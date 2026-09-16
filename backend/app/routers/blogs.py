@@ -155,22 +155,29 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
 
 @router.put("/blogs/{blog_id}")
 def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
-    # Duplication check (ignore self)
-    existing = db.execute(text("SELECT id, status, author_email FROM blogs WHERE title = :title AND id != :id"), {"title": blog.title, "id": blog_id}).mappings().first()
-    if existing:
-        existing_author = existing.get('author_email')
-        existing_author_clean = existing_author.strip().lower() if existing_author else None
-        current_author_clean = blog.author_email.strip().lower() if blog.author_email else None
-        # Only block if it conflicts with another user or an active submission
-        if existing['status'] != 'draft' or existing_author_clean != current_author_clean:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail="Another blog submission with this title already exists.")
-
     row = db.execute(text("SELECT * FROM blogs WHERE id = :id"), {"id": blog_id}).mappings().first()
     if not row:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Blog not found")
 
+    # Duplication check: only check if the title actually changed
+    current_title = (row.get('title') or '').strip().lower()
+    new_title = (blog.title or '').strip().lower()
+    if new_title and new_title != current_title:
+        existing = db.execute(
+            text("SELECT id, status, author_email FROM blogs WHERE LOWER(title) = :title AND id != :id"),
+            {"title": new_title, "id": blog_id}
+        ).mappings().first()
+        if existing:
+            existing_author = existing.get('author_email')
+            existing_author_clean = existing_author.strip().lower() if existing_author else None
+            current_author_clean = blog.author_email.strip().lower() if blog.author_email else None
+            # Only block if it conflicts with another user's submission or another published blog
+            if existing['status'] == 'approved' or (existing_author_clean != current_author_clean and existing['status'] != 'draft'):
+                from fastapi import HTTPException
+                raise HTTPException(status_code=400, detail="Another blog submission with this title already exists.")
+
+    current_status = row.get('status')
     prev_version_str = row.get('previous_version')
     edited_flag = row.get('edited_by_admin') or False
 
@@ -178,18 +185,30 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
         import json
         blog_data = {
             "title": row.get('title'),
+            "author_name": row.get('author_name'),
             "summary": row.get('summary'),
             "background": row.get('background'),
             "findings": row.get('findings'),
             "implications": row.get('implications'),
             "narrative": row.get('narrative'),
             "impact": row.get('impact'),
-            "sources": row.get('sources')
+            "sources": row.get('sources'),
+            "image_url": row.get('image_url')
         }
         prev_version_str = json.dumps(blog_data)
         edited_flag = True
 
-    new_status = blog.status or 'pending'
+    # Determine status: if blog was already approved, keep it approved unless explicitly changed
+    if blog.status and blog.status != 'pending':
+        new_status = blog.status
+    elif current_status == 'approved':
+        new_status = 'approved'
+    else:
+        new_status = blog.status or current_status or 'pending'
+
+    author_email_clean = (blog.author_email or row.get('author_email') or '').strip().lower() or None
+    submitted_at_val = row.get('submitted_at') if current_status == 'approved' else datetime.utcnow()
+    reviewed_at_val = datetime.utcnow() if new_status == 'approved' else row.get('reviewed_at')
 
     db.execute(text("""
         UPDATE blogs 
@@ -206,21 +225,77 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
             image_url = :image_url, 
             status = :status,
             submitted_at = :submitted_at,
+            reviewed_at = :reviewed_at,
             author_email = :author_email,
             previous_version = :prev_version,
             edited_by_admin = :edited_by_admin
         WHERE id = :id
     """), {
-        **blog.dict(exclude={'edited_by_admin', 'status'}),
+        "title": blog.title,
+        "author_name": blog.author_name,
+        "post_type": blog.post_type,
+        "summary": blog.summary,
+        "background": blog.background,
+        "findings": blog.findings,
+        "implications": blog.implications,
+        "narrative": blog.narrative,
+        "impact": blog.impact,
+        "sources": blog.sources,
+        "image_url": blog.image_url,
         "status": new_status,
-        "submitted_at": datetime.utcnow(),
-        "id": blog_id,
+        "submitted_at": submitted_at_val,
+        "reviewed_at": reviewed_at_val,
+        "author_email": author_email_clean,
         "prev_version": prev_version_str,
-        "edited_by_admin": edited_flag
+        "edited_by_admin": edited_flag,
+        "id": blog_id
     })
     db.commit()
 
-    if new_status != "draft" and blog.author_email:
+    # If the blog is published and approved, refresh vector embeddings in ChromaDB immediately
+    if new_status == 'approved':
+        try:
+            import chromadb
+            chroma_client = chromadb.PersistentClient(path="./chroma_db")
+            collection = chroma_client.get_or_create_collection(name="climate_docs")
+            
+            blog_text = f"{blog.summary or ''} {blog.background or ''} {blog.findings or ''} {blog.implications or ''} {blog.narrative or ''} {blog.impact or ''}"
+            text_to_embed = f"Title: {blog.title}\nAuthor: {blog.author_name}\nType: User Blog\nContent: {blog_text[:3000]}"
+            
+            collection.upsert(
+                documents=[text_to_embed],
+                metadatas=[{
+                    "title": blog.title or "Untitled Blog",
+                    "source": "User Blog Submission",
+                    "country": "Africa (Global)", 
+                    "original_id": f"blog_{blog_id}"
+                }],
+                ids=[f"blog_{blog_id}"]
+            )
+        except Exception as e:
+            print(f"Error embedding updated blog: {e}")
+
+    # Notifications handling
+    if current_status == 'approved' and new_status == 'approved':
+        if author_email_clean:
+            send_simulated_email(
+                to_email=author_email_clean,
+                subject="Published Climate Submission Updated",
+                body=f"Hello {blog.author_name},\n\nYour published submission '{blog.title}' has been updated with editorial adjustments by an administrator.\n\nThe live post on the platform and the AI knowledge base have been updated."
+            )
+            db.execute(text("""
+                INSERT INTO notifications (user_email, title, message, is_read, created_at)
+                VALUES (:email, :title, :message, FALSE, :now)
+            """), {
+                "email": author_email_clean,
+                "title": "Published Blog Updated ✍️",
+                "message": f"Your published work '{blog.title}' was updated with editorial changes.",
+                "now": datetime.utcnow()
+            })
+            db.commit()
+        return {"message": "Published blog updated and live on platform", "id": blog_id, "status": new_status}
+
+    if new_status != "draft" and author_email_clean:
         is_re_submission = row.get('status') == 'rejected'
         subject = "Climate Submission Resubmitted" if is_re_submission else "Climate Submission Received"
         body_text = (
@@ -236,7 +311,7 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
         )
 
         send_simulated_email(
-            to_email=blog.author_email,
+            to_email=author_email_clean,
             subject=subject,
             body=body_text
         )
@@ -244,14 +319,15 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
             INSERT INTO notifications (user_email, title, message, is_read, created_at)
             VALUES (:email, :title, :message, FALSE, :now)
         """), {
-            "email": blog.author_email,
+            "email": author_email_clean,
             "title": notif_title,
             "message": notif_msg,
             "now": datetime.utcnow()
         })
         db.commit()
 
-    return {"message": "Blog draft updated" if new_status == "draft" else "Blog updated and submitted for review"}
+    return {"message": "Blog draft updated" if new_status == "draft" else "Blog updated and submitted for review", "id": blog_id, "status": new_status}
+
 
 @router.patch("/blogs/{blog_id}/approve")
 def approve_blog(blog_id: int, db: Session = Depends(get_db), admin_user: User = Depends(get_current_admin)):

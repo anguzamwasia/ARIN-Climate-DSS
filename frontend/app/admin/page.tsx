@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { 
   Check, X, User, FileText, LayoutDashboard, 
-  Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines, BookOpen, Edit
+  Video, UploadCloud, CheckCircle2, Loader2, Play, AudioLines, BookOpen, Edit, BarChart2, Trash2
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
@@ -14,17 +14,32 @@ import "react-quill-new/dist/quill.snow.css"
 
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false })
 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from "recharts"
+
+
 // Types matching current systems
 interface Blog {
   id: string
   title: string
   authorName: string
+  authorEmail?: string
   imageUrl?: string
   postType: "research" | "story"
   status: "draft" | "pending" | "approved" | "rejected"
   submittedAt: string
   reviewedAt?: string
   feedback?: string
+  previousVersion?: string
+  editedByAdmin?: boolean
   formData?: Record<string, string>
 }
 
@@ -39,9 +54,9 @@ interface LocalMediaLog {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 export default function UnifiedAdminPortal() {
-  const { token } = useAuth()
+  const { token, logout } = useAuth()
   // Navigation Tracking Layout Toggle
-  const [activeTab, setActiveTab] = useState<"blogs" | "media" | "research">("blogs")
+  const [activeTab, setActiveTab] = useState<"blogs" | "media" | "research" | "analytics">("blogs")
 
   // --- BLOG STATE MANAGEMENT ---
   const [allBlogs, setAllBlogs] = useState<Blog[]>([])
@@ -57,6 +72,8 @@ export default function UnifiedAdminPortal() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [blogToEdit, setBlogToEdit] = useState<Blog | null>(null)
   const [editFormData, setEditFormData] = useState<Record<string, string>>({})
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editImageError, setEditImageError] = useState<string | null>(null)
 
   // User Stats
   const [userStats, setUserStats] = useState({ total_users: 0, active_users: 0 })
@@ -69,6 +86,10 @@ export default function UnifiedAdminPortal() {
           "Authorization": `Bearer ${token}`
         }
       })
+      if (res.status === 401) {
+        logout()
+        return
+      }
       if (res.ok) {
         const data = await res.json()
         setUserStats(data)
@@ -83,9 +104,34 @@ export default function UnifiedAdminPortal() {
           "Authorization": `Bearer ${token}`
         }
       })
+      if (res.status === 401) {
+        logout()
+        return
+      }
       if (res.ok) {
         const data = await res.json()
         setContentStats(data)
+      }
+    } catch (err) {}
+  }
+
+  // Monthly stats state & fetcher
+  const [monthlyData, setMonthlyData] = useState<any[]>([])
+
+  const fetchMonthlyData = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/v1/admin/reports/monthly`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      if (res.status === 401) {
+        logout()
+        return
+      }
+      if (res.ok) {
+        const data = await res.json()
+        setMonthlyData(data)
       }
     } catch (err) {}
   }
@@ -100,11 +146,15 @@ export default function UnifiedAdminPortal() {
           id: b.id.toString(),
           title: b.title,
           authorName: b.author_name,
+          authorEmail: b.author_email,
           postType: b.post_type,
           status: b.status,
           submittedAt: b.submitted_at,
+          reviewedAt: b.reviewed_at,
           imageUrl: b.image_url,
           feedback: b.feedback,
+          previousVersion: b.previous_version,
+          editedByAdmin: b.edited_by_admin,
           formData: {
             summary: b.summary,
             findings: b.findings,
@@ -127,6 +177,7 @@ export default function UnifiedAdminPortal() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadMessage, setUploadMessage] = useState("")
   const [localHistory, setLocalHistory] = useState<LocalMediaLog[]>([])
+  const [mediaDescription, setMediaDescription] = useState("")
 
   const fetchUploadHistory = async () => {
     try {
@@ -159,7 +210,7 @@ export default function UnifiedAdminPortal() {
           id: m.id.toString(),
           originalName: cleanName,
           timestamp: m.scraped_at || new Date().toISOString(),
-          status: "completed" as const,
+          status: m.file_url === "failed" ? "failed" as const : "completed" as const,
           type: fileType as any
         }
       })
@@ -174,6 +225,27 @@ export default function UnifiedAdminPortal() {
     }
   }
 
+  const handleDeleteDocument = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this document/transcript and its search vector index?")) return
+    try {
+      const res = await fetch(`${API_URL}/api/v1/admin/documents/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      if (res.ok) {
+        setUploadMessage("🗑️ Document deleted successfully.")
+        fetchUploadHistory()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        setUploadMessage(`❌ Delete failure: ${err.detail || "Server rejected delete request"}`)
+      }
+    } catch (err: any) {
+      setUploadMessage(`❌ Delete failure: ${err.message || err}`)
+    }
+  }
+
   useEffect(() => {
     fetchBlogs()
   }, [])
@@ -182,14 +254,104 @@ export default function UnifiedAdminPortal() {
     if (token) {
       fetchUserStats()
       fetchContentStats()
+      fetchMonthlyData()
       fetchUploadHistory()
     }
   }, [token])
+
+  // Deep-link handler: automatically open edit modal if ?editBlogId=... is in the URL
+  useEffect(() => {
+    if (typeof window !== "undefined" && allBlogs.length > 0) {
+      const params = new URLSearchParams(window.location.search)
+      const editId = params.get("editBlogId")
+      if (editId) {
+        const target = allBlogs.find(b => b.id === editId)
+        if (target) {
+          setActiveTab("blogs")
+          setBlogSubTab(target.status === "approved" ? "approved" : target.status === "rejected" ? "rejected" : "pending")
+          openEditModal(target)
+        }
+      }
+    }
+  }, [allBlogs])
 
   // Filter lists dynamically
   const pendingBlogs = allBlogs.filter((b) => b.status === "pending")
   const approvedBlogs = allBlogs.filter((b) => b.status === "approved")
   const rejectedBlogs = allBlogs.filter((b) => b.status === "rejected")
+
+  const openEditModal = (blog: Blog) => {
+    setBlogToEdit(blog)
+    setEditFormData({
+      title: blog.title || "",
+      authorName: blog.authorName || "",
+      imageUrl: blog.imageUrl || "",
+      summary: blog.formData?.summary || "",
+      findings: blog.formData?.findings || "",
+      narrative: blog.formData?.narrative || "",
+      impact: blog.formData?.impact || "",
+      sources: blog.formData?.sources || "",
+      background: blog.formData?.background || "",
+      implications: blog.formData?.implications || ""
+    })
+    setEditError(null)
+    setEditImageError(null)
+    setShowEditModal(true)
+  }
+
+  const handleEditImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
+    if (!validTypes.includes(file.type)) {
+      setEditImageError("Please upload a valid image file (.png, .jpg, .jpeg, .webp).")
+      return
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+      setEditImageError(`Image size is ${sizeMB}MB, which exceeds the 3MB limit. Please select an image up to 3MB only.`)
+      e.target.value = ""
+      return
+    }
+
+    setEditImageError(null)
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new window.Image()
+      img.src = event.target?.result as string
+      img.onload = () => {
+        const maxWidth = 1200
+        const maxHeight = 1200
+        let width = img.width
+        let height = img.height
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width)
+            width = maxWidth
+          } else {
+            width = Math.round((width * maxHeight) / height)
+            height = maxHeight
+          }
+        }
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height)
+          setEditFormData(prev => ({ ...prev, imageUrl: canvas.toDataURL("image/jpeg", 0.82) }))
+        } else {
+          setEditFormData(prev => ({ ...prev, imageUrl: event.target?.result as string }))
+        }
+      }
+      img.onerror = () => {
+        setEditFormData(prev => ({ ...prev, imageUrl: event.target?.result as string }))
+      }
+    }
+    reader.readAsDataURL(file)
+  }
 
   // --- ACTIONS: BLOG QUEUE ---
   const handleApprove = async (id: string) => {
@@ -241,40 +403,56 @@ export default function UnifiedAdminPortal() {
     setIsProcessingBlog(false)
   }
 
-  const handleEditSubmit = async () => {
+  const handleEditSubmit = async (overrideStatus?: "approved" | "pending") => {
     if (!blogToEdit) return
     setIsProcessingBlog(true)
+    setEditError(null)
     try {
+      const targetStatus = overrideStatus || blogToEdit.status || "pending"
       const payload = {
         title: editFormData.title || blogToEdit.title,
-        author_name: blogToEdit.authorName,
+        author_name: editFormData.authorName || blogToEdit.authorName,
+        author_email: blogToEdit.authorEmail,
         post_type: blogToEdit.postType,
-        summary: editFormData.summary || blogToEdit.formData?.summary,
-        findings: editFormData.findings || blogToEdit.formData?.findings,
-        narrative: editFormData.narrative || blogToEdit.formData?.narrative,
-        impact: editFormData.impact || blogToEdit.formData?.impact,
-        sources: editFormData.sources || blogToEdit.formData?.sources,
-        image_url: blogToEdit.imageUrl,
-        background: editFormData.background || blogToEdit.formData?.background,
-        implications: editFormData.implications || blogToEdit.formData?.implications,
+        summary: editFormData.summary !== undefined ? editFormData.summary : blogToEdit.formData?.summary,
+        findings: editFormData.findings !== undefined ? editFormData.findings : blogToEdit.formData?.findings,
+        narrative: editFormData.narrative !== undefined ? editFormData.narrative : blogToEdit.formData?.narrative,
+        impact: editFormData.impact !== undefined ? editFormData.impact : blogToEdit.formData?.impact,
+        sources: editFormData.sources !== undefined ? editFormData.sources : blogToEdit.formData?.sources,
+        image_url: editFormData.imageUrl !== undefined ? editFormData.imageUrl : blogToEdit.imageUrl,
+        background: editFormData.background !== undefined ? editFormData.background : blogToEdit.formData?.background,
+        implications: editFormData.implications !== undefined ? editFormData.implications : blogToEdit.formData?.implications,
+        status: targetStatus,
         edited_by_admin: true
       }
 
       const res = await fetch(`${API_URL}/blogs/${blogToEdit.id}`, { 
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(payload)
       })
       
       if (res.ok) {
         await fetchBlogs()
-        setBlogActionMessage("✍️ Changes saved and contributor notified of updates!")
-        setTimeout(() => setBlogActionMessage(""), 3000)
+        setBlogActionMessage(
+          targetStatus === "approved"
+            ? "✅ Published blog updated and live on platform!"
+            : "✍️ Changes saved and contributor notified of updates!"
+        )
+        setTimeout(() => setBlogActionMessage(""), 4000)
+        setShowEditModal(false)
+        setBlogToEdit(null)
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        setEditError(errorData.detail || "Failed to save blog changes. Please check inputs.")
       }
-    } catch (err) {}
+    } catch (err) {
+      setEditError("Failed to connect to backend server.")
+    }
     setIsProcessingBlog(false)
-    setShowEditModal(false)
-    setBlogToEdit(null)
   }
 
   const handleEditChange = (field: string, value: string) => {
@@ -295,12 +473,17 @@ export default function UnifiedAdminPortal() {
   const handleMediaUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!uploadingFile) return
+    if (!mediaDescription || !mediaDescription.trim()) {
+      setUploadMessage("❌ Description/Tags are mandatory.")
+      return
+    }
 
     setIsUploading(true)
     setUploadMessage("Uploading stream payload straight into local storage volumes...")
 
     const formData = new FormData()
-    formData.append("file", uploadingFile)
+    formData.append("file", uploadingFile!)
+    formData.append("description", mediaDescription.trim())
 
     try {
       // Connects directly to our backend endpoint route layer
@@ -316,11 +499,11 @@ export default function UnifiedAdminPortal() {
 
       const data = await response.json()
       
-      const fileType = uploadingFile.name.toLowerCase().endsWith(".mp4") ? "video" : "audio"
+      const fileType = uploadingFile!.name.toLowerCase().endsWith(".mp4") ? "video" : "audio"
       const tempId = Math.random().toString(36).substr(2, 9)
       const newLog: LocalMediaLog = {
         id: tempId,
-        originalName: uploadingFile.name,
+        originalName: uploadingFile!.name,
         timestamp: new Date().toISOString(),
         status: "processing",
         type: fileType as any
@@ -330,6 +513,7 @@ export default function UnifiedAdminPortal() {
 
       setUploadMessage(`🚀 Asset received! Processing local Whisper transcription on background threads.`)
       setUploadingFile(null)
+      setMediaDescription("")
 
       setTimeout(() => {
         fetchUploadHistory()
@@ -384,11 +568,12 @@ export default function UnifiedAdminPortal() {
   }
 
   // Helper to reset upload state when switching tabs
-  const switchTab = (tab: "blogs" | "media" | "research") => {
+  const switchTab = (tab: "blogs" | "media" | "research" | "analytics") => {
     setActiveTab(tab)
     setUploadingFile(null)
     setUploadMessage("")
     setDocDescription("")
+    setMediaDescription("")
   }
 
   return (
@@ -434,6 +619,13 @@ export default function UnifiedAdminPortal() {
           <Video className="w-4 h-4" />
           <span>Media</span>
         </button>
+        <button 
+          onClick={() => switchTab("analytics")} 
+          className={`flex flex-col items-center gap-1 p-2 text-xs font-semibold rounded-lg transition-colors ${activeTab === "analytics" ? "text-emerald-700 font-bold" : "text-gray-500"}`}
+        >
+          <BarChart2 className="w-4 h-4" />
+          <span>Analytics</span>
+        </button>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -473,6 +665,14 @@ export default function UnifiedAdminPortal() {
           >
             <Video className="w-4 h-4" />
             <span>Media Ingestion Node</span>
+          </button>
+
+          <button 
+            onClick={() => switchTab("analytics")}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === "analytics" ? "bg-emerald-50 text-emerald-700 font-bold" : "text-gray-600 hover:bg-gray-50"}`}
+          >
+            <BarChart2 className="w-4 h-4 text-blue-600" />
+            <span>Ingestion Analytics</span>
           </button>
 
           <div className="mt-8 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -527,6 +727,40 @@ export default function UnifiedAdminPortal() {
                 <p className="text-sm font-bold text-blue-600 mt-0.5">{contentStats.media_processed}</p>
               </div>
             </div>
+
+            {/* TAB SECTION D: MONTHLY INGESTION RATE CHART */}
+            {activeTab === "analytics" && (
+              <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-8 animate-in fade-in duration-200">
+                <h2 className="text-xl font-bold text-gray-900 mb-1">Monthly Report Ingestion Rate</h2>
+                <p className="text-xs text-gray-500 mb-6 font-medium">Track the monthly volume of climate reports scraped vs. added manually through the admin panel.</p>
+                
+                {monthlyData.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center border border-dashed rounded-xl bg-gray-50 text-xs text-gray-400 font-semibold">
+                    No monthly ingestion data available.
+                  </div>
+                ) : (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={monthlyData}
+                        margin={{ top: 10, right: 30, left: 10, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="month" stroke="#64748b" tick={{ fontSize: 10, fontWeight: 500 }} />
+                        <YAxis stroke="#64748b" tick={{ fontSize: 10, fontWeight: 500 }} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: 12 }}
+                        />
+                        <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: 11, fontWeight: 500 }} />
+                        <Bar dataKey="scraped" stackId="a" fill="#2563eb" name="Scraped Reports" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="admin" stackId="a" fill="#10b981" name="Admin Uploads" radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            )}
+
 
             {/* TAB SECTION A: BLOG WORKFLOW ARRAY */}
             {activeTab === "blogs" && (
@@ -596,15 +830,44 @@ export default function UnifiedAdminPortal() {
                           
                           {blog.status === "pending" ? (
                             <div className="flex gap-2 w-full sm:w-auto justify-end">
-                              <button disabled={isProcessingBlog} onClick={() => { setBlogToEdit(blog); setEditFormData({ title: blog.title, ...(blog.formData || {}) }); setShowEditModal(true); }} className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-sm bg-blue-50 font-medium hover:bg-blue-100 transition-colors flex items-center gap-1"><Edit className="w-3.5 h-3.5" /> Edit</button>
-                              <button disabled={isProcessingBlog} onClick={() => { setSelectedBlog(blog); setRejectionError(null); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors">Reject</button>
-                              <button disabled={isProcessingBlog} onClick={() => handleApprove(blog.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors">Approve</button>
+                              <button disabled={isProcessingBlog} onClick={() => openEditModal(blog)} className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-sm bg-blue-50 font-medium hover:bg-blue-100 transition-colors flex items-center gap-1 cursor-pointer"><Edit className="w-3.5 h-3.5" /> Edit</button>
+                              <button disabled={isProcessingBlog} onClick={() => { setSelectedBlog(blog); setRejectionError(null); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors cursor-pointer">Reject</button>
+                              <button disabled={isProcessingBlog} onClick={() => handleApprove(blog.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors cursor-pointer">Approve</button>
                             </div>
                           ) : blog.status === "approved" ? (
-                            <span className="text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 font-semibold">Approved & Live</span>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 font-semibold flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Approved & Live
+                              </span>
+                              <button 
+                                disabled={isProcessingBlog} 
+                                onClick={() => openEditModal(blog)} 
+                                className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs bg-blue-50 font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                                title="Edit this published blog"
+                              >
+                                <Edit className="w-3.5 h-3.5" /> Edit Published Post
+                              </button>
+                              <Link 
+                                href={`/blogs/${blog.id}`} 
+                                target="_blank" 
+                                className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs bg-gray-50 font-medium hover:bg-gray-100 transition-colors flex items-center gap-1 cursor-pointer"
+                                title="View live article in new tab"
+                              >
+                                View Live ↗
+                              </Link>
+                            </div>
                           ) : (
-                            <div className="text-xs text-red-700 bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 max-w-xs">
-                              <strong>Rejection Feedback:</strong> {blog.feedback}
+                            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                              <div className="text-xs text-red-700 bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 max-w-xs">
+                                <strong>Rejection Feedback:</strong> {blog.feedback}
+                              </div>
+                              <button 
+                                disabled={isProcessingBlog} 
+                                onClick={() => openEditModal(blog)} 
+                                className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs bg-blue-50 font-medium hover:bg-blue-100 transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit className="w-3.5 h-3.5" /> Edit
+                              </button>
                             </div>
                           )}
                         </div>
@@ -700,26 +963,24 @@ export default function UnifiedAdminPortal() {
                       </label>
 
                       {uploadingFile && (
-                        <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-xs space-y-3">
-                          <div>
-                            <p className="font-bold text-gray-900 truncate">Selected File:</p>
-                            <p className="text-gray-600 truncate mt-0.5">{uploadingFile.name}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">{(uploadingFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                          </div>
-                          
-                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-700 block">Document Description</label>
-                            <textarea
-                              value={docDescription}
-                              onChange={(e) => setDocDescription(e.target.value)}
-                              placeholder="Enter a brief 1-2 sentence description explaining this document..."
-                              rows={3}
-                              className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              required
-                            />
-                          </div>
+                        <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-xs">
+                          <p className="font-bold text-gray-900 truncate">Selected File:</p>
+                          <p className="text-gray-600 truncate mt-0.5">{uploadingFile.name}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{(uploadingFile.size / (1024 * 1024)).toFixed(2)} MB</p>
                         </div>
                       )}
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-700 block">Document Description</label>
+                        <textarea
+                          value={docDescription}
+                          onChange={(e) => setDocDescription(e.target.value)}
+                          placeholder="Enter a brief 1-2 sentence description explaining this document..."
+                          rows={3}
+                          className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
 
                       <button
                         type="submit"
@@ -764,11 +1025,18 @@ export default function UnifiedAdminPortal() {
                             </div>
                           </div>
 
-                          <div>
+                          <div className="flex items-center gap-3">
                             <span className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                               <CheckCircle2 className="w-3 h-3" />
                               <span>Stored</span>
                             </span>
+                            <button
+                              onClick={() => handleDeleteDocument(log.id)}
+                              className="p-1 rounded-md text-gray-400 hover:text-red-600 hover:bg-gray-100 transition-colors"
+                              title="Delete document and search index"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -793,6 +1061,7 @@ export default function UnifiedAdminPortal() {
                   {/* LEFT: UPLOAD BOX CONTROLS */}
                   <div className="md:col-span-1 bg-white p-6 border rounded-xl shadow-sm h-fit">
                     <h3 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider text-gray-400">Upload Media Asset</h3>
+
                     <form onSubmit={handleMediaUploadSubmit} className="space-y-4">
                       <label className="border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors text-center block">
                         <UploadCloud className="w-8 h-8 text-gray-400 mb-2" />
@@ -809,9 +1078,21 @@ export default function UnifiedAdminPortal() {
                         </div>
                       )}
 
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-700 block">Description / Tags</label>
+                        <textarea
+                          value={mediaDescription}
+                          onChange={(e) => setMediaDescription(e.target.value)}
+                          placeholder="Enter brief description or tags for easy searching and categorization of this media..."
+                          rows={3}
+                          className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                          required
+                        />
+                      </div>
+
                       <button
                         type="submit"
-                        disabled={!uploadingFile || isUploading}
+                        disabled={isUploading || !mediaDescription.trim() || !uploadingFile}
                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-4 rounded-lg shadow-sm disabled:opacity-40 flex items-center justify-center gap-2 transition-all"
                       >
                         {isUploading ? (
@@ -829,7 +1110,9 @@ export default function UnifiedAdminPortal() {
                     </form>
 
                     {uploadMessage && (
-                      <div className="mt-4 p-3 rounded-lg text-xs bg-blue-50 border border-blue-200 text-blue-800 leading-relaxed">
+                      <div className={`mt-4 p-3 rounded-lg text-xs leading-relaxed border ${
+                        uploadMessage.includes('❌') ? 'bg-red-50 border-red-200 text-red-800' : 'bg-blue-50 border-blue-200 text-blue-800'
+                      }`}>
                         {uploadMessage}
                       </div>
                     )}
@@ -847,12 +1130,12 @@ export default function UnifiedAdminPortal() {
                               {log.type === "video" ? <Video className="w-4 h-4" /> : <AudioLines className="w-4 h-4" />}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-semibold text-gray-900 truncate pr-4">{log.originalName}</p>
+                              <p className="font-semibold text-gray-900 pr-12 break-all">{log.originalName}</p>
                               <p className="text-[10px] text-gray-400 mt-0.5">{new Date(log.timestamp).toLocaleString()}</p>
                             </div>
                           </div>
 
-                          <div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
                             {log.status === "processing" ? (
                               <span className="flex items-center gap-1.5 text-xs text-amber-600 font-semibold bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
                                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -869,6 +1152,13 @@ export default function UnifiedAdminPortal() {
                                 <span>Failed</span>
                               </span>
                             )}
+                            <button
+                              onClick={() => handleDeleteDocument(log.id)}
+                              className="p-1 rounded-md text-gray-400 hover:text-red-600 hover:bg-gray-100 transition-colors"
+                              title="Delete media and transcript index"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -912,66 +1202,184 @@ export default function UnifiedAdminPortal() {
       
       {showEditModal && blogToEdit && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-xl border animate-in fade-in zoom-in-95 duration-100">
-            <div className="p-6 border-b flex-shrink-0">
-              <h2 className="text-lg font-bold text-gray-900 mb-1">Edit Submission</h2>
-              <p className="text-sm text-gray-500">Make necessary changes before approving.</p>
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border animate-in fade-in zoom-in-95 duration-100">
+            <div className="p-6 border-b flex-shrink-0 bg-gray-50/50 flex justify-between items-start">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    {blogToEdit.status === "approved" ? "Edit Published Blog" : "Edit Submission"}
+                  </h2>
+                  {blogToEdit.status === "approved" ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Live on Platform
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                      Pending Review
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {blogToEdit.status === "approved"
+                    ? "Modify this published document. Edits will immediately update the live public post and synchronize the AI knowledge base."
+                    : "Make necessary editorial improvements before approving."}
+                </p>
+              </div>
+              <button 
+                onClick={() => { setShowEditModal(false); setBlogToEdit(null); }}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             
-            <div className="p-6 overflow-y-auto space-y-4 flex-1">
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-1.5">Title</label>
-                <input 
-                  value={editFormData.title || ""} 
-                  onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })} 
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                />
+            {editError && (
+              <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg font-medium">
+                ⚠️ {editError}
+              </div>
+            )}
+
+            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Article Title</label>
+                  <input 
+                    value={editFormData.title || ""} 
+                    onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })} 
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" 
+                    placeholder="Enter blog title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Author / Contributor Name</label>
+                  <input 
+                    value={editFormData.authorName || ""} 
+                    onChange={(e) => setEditFormData({ ...editFormData, authorName: e.target.value })} 
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    placeholder="Contributor name"
+                  />
+                </div>
+              </div>
+
+              {/* Cover Image Controls */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Cover Image (Optional — Up to 3MB)</label>
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  {editFormData.imageUrl ? (
+                    <div className="relative w-28 h-20 border rounded-lg overflow-hidden bg-white shadow-sm flex-shrink-0">
+                      <img src={editFormData.imageUrl} alt="Cover preview" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-28 h-20 border border-dashed rounded-lg flex items-center justify-center text-xs text-gray-400 bg-white flex-shrink-0">
+                      No image
+                    </div>
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <input 
+                      type="file"
+                      accept=".png, .jpg, .jpeg, .webp"
+                      onChange={handleEditImageUpload}
+                      className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                    />
+                    <p className="text-[11px] text-gray-400">Supported: PNG, JPG, WEBP • Max <strong>3MB only</strong></p>
+                    {editImageError && (
+                      <p className="text-xs text-red-600 font-semibold">{editImageError}</p>
+                    )}
+                    {editFormData.imageUrl && (
+                      <button 
+                        type="button" 
+                        onClick={() => setEditFormData(prev => ({ ...prev, imageUrl: "" }))}
+                        className="text-xs text-red-600 hover:text-red-800 font-medium underline cursor-pointer"
+                      >
+                        Remove current image
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {blogToEdit.postType === "research" ? (
                 <>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Executive Summary</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Executive Summary</label>
                     <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.summary || ""} onChange={(v) => handleEditChange("summary", v)} /></div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Background Context</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Background Context</label>
                     <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.background || ""} onChange={(v) => handleEditChange("background", v)} /></div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Key Findings</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Key Findings</label>
                     <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.findings || ""} onChange={(v) => handleEditChange("findings", v)} /></div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Implications</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Policy Implications</label>
                     <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.implications || ""} onChange={(v) => handleEditChange("implications", v)} /></div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Sources</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">References & Sources</label>
                     <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.sources || ""} onChange={(v) => handleEditChange("sources", v)} /></div>
                   </div>
                 </>
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Story Premise</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Story Premise</label>
                     <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.summary || ""} onChange={(v) => handleEditChange("summary", v)} /></div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Narrative</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Lived Narrative</label>
                     <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.narrative || ""} onChange={(v) => handleEditChange("narrative", v)} /></div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">Impact</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Community Impact</label>
                     <div className="bg-white rounded-lg border border-gray-300"><ReactQuill theme="snow" value={editFormData.impact || ""} onChange={(v) => handleEditChange("impact", v)} /></div>
                   </div>
                 </>
               )}
             </div>
 
-            <div className="p-6 border-t flex-shrink-0 flex justify-end gap-2 bg-gray-50">
-              <button onClick={() => { setShowEditModal(false); setBlogToEdit(null); }} className="px-4 py-2 border border-gray-300 bg-white rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors font-medium">Cancel</button>
-              <button onClick={handleEditSubmit} disabled={isProcessingBlog} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium shadow-sm transition-colors disabled:opacity-50">Save Changes</button>
+            <div className="p-4 sm:p-6 border-t flex-shrink-0 flex flex-wrap justify-between items-center gap-3 bg-gray-50">
+              <div className="text-xs text-gray-500">
+                {blogToEdit.status === "approved" ? (
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Saving will immediately update the live website and AI index.
+                  </span>
+                ) : (
+                  <span>Status: Pending Review</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={() => { setShowEditModal(false); setBlogToEdit(null); }} 
+                  className="px-4 py-2 border border-gray-300 bg-white rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                {blogToEdit.status === "pending" && (
+                  <button 
+                    type="button"
+                    onClick={() => handleEditSubmit("approved")} 
+                    disabled={isProcessingBlog} 
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isProcessingBlog ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                    Save & Approve Now
+                  </button>
+                )}
+                <button 
+                  type="button"
+                  onClick={() => handleEditSubmit()} 
+                  disabled={isProcessingBlog} 
+                  className={`px-4 py-2 text-white rounded-lg text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer ${
+                    blogToEdit.status === "approved" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {isProcessingBlog && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {blogToEdit.status === "approved" ? "Save & Update Live Blog" : "Save Changes"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

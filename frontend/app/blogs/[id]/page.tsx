@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, User, Calendar, Loader2 } from "lucide-react"
+import { ArrowLeft, User, Calendar, Loader2, Edit } from "lucide-react"
 import { Header } from "@/components/header"
+import { useAuth } from "@/contexts/auth-context"
 
 interface Blog {
   id: string
@@ -20,6 +22,8 @@ interface Blog {
 export default function BlogDetailPage() {
   const { id } = useParams()
   const router = useRouter()
+  const { user } = useAuth()
+  const isAdmin = user?.email?.trim().toLowerCase() === "admin@arin-africa.org"
   const [blog, setBlog] = useState<Blog | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -93,11 +97,30 @@ export default function BlogDetailPage() {
       <main className="flex-1 container mx-auto px-4 lg:px-8 py-10 pt-28 max-w-4xl">
         <button 
           onClick={() => router.push("/blogs")} 
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8 group"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 group cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           Back to Content Hub
         </button>
+
+        {isAdmin && (
+          <div className="mb-6 p-4 bg-amber-50/90 border border-amber-200 rounded-xl flex items-center justify-between flex-wrap gap-3 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0"></span>
+              <div>
+                <p className="text-xs font-bold text-amber-900">Administrator Editorial Controls</p>
+                <p className="text-[11px] text-amber-700">Notice missing details or a correction needed? You can edit this live document directly.</p>
+              </div>
+            </div>
+            <Link 
+              href={`/admin?editBlogId=${blog.id}`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              Edit this Published Blog
+            </Link>
+          </div>
+        )}
 
         <article className="bg-white border rounded-2xl overflow-hidden shadow-sm">
           {/* Article Header Details */}
