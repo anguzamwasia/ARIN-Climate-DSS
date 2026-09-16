@@ -29,12 +29,12 @@ class BlogIn(BaseModel):
 class BlogAction(BaseModel):
     feedback: Optional[str] = None
 
-def send_simulated_email(to_email: str, subject: str, body: str):
-    print(f"\n==================================================")
-    print(f"[EMAIL SIMULATOR] Sending email to: {to_email}")
-    print(f"Subject: {subject}")
-    print(f"Body:\n{body}")
-    print(f"==================================================\n")
+from app.services.email_service import (
+    send_submission_received_email,
+    send_approval_email,
+    send_revision_requested_email,
+    send_published_updated_email
+)
 
 @router.get("/blogs")
 def list_blogs(status: Optional[str] = None, author_email: Optional[str] = None, db: Session = Depends(get_db)):
@@ -94,18 +94,20 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
             db.commit()
             
             if new_status != "draft" and author_email_clean:
-                send_simulated_email(
+                send_submission_received_email(
                     to_email=author_email_clean,
-                    subject="Climate Submission Received",
-                    body=f"Hello {blog.author_name},\n\nYour submission '{blog.title}' has been successfully received and is currently under review."
+                    author_name=blog.author_name,
+                    title=blog.title,
+                    post_type=blog.post_type
                 )
+                type_label = "Research Paper" if blog.post_type == "research" else "Community Story"
                 db.execute(text("""
                     INSERT INTO notifications (user_email, title, message, is_read, created_at)
                     VALUES (:email, :title, :message, FALSE, :now)
                 """), {
                     "email": author_email_clean,
-                    "title": "Submission Received",
-                    "message": f"Your work '{blog.title}' has been received and is under review.",
+                    "title": f"{type_label} Received",
+                    "message": f"Your {type_label.lower()} '{blog.title}' has been received and is under review.",
                     "now": datetime.utcnow()
                 })
                 db.commit()
@@ -132,18 +134,20 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
     db.commit()
 
     if new_status != "draft" and author_email_clean:
-        send_simulated_email(
+        send_submission_received_email(
             to_email=author_email_clean,
-            subject="Climate Submission Received",
-            body=f"Hello {blog.author_name},\n\nYour submission '{blog.title}' has been successfully received and is currently under review."
+            author_name=blog.author_name,
+            title=blog.title,
+            post_type=blog.post_type
         )
+        type_label = "Research Paper" if blog.post_type == "research" else "Community Story"
         db.execute(text("""
             INSERT INTO notifications (user_email, title, message, is_read, created_at)
             VALUES (:email, :title, :message, FALSE, :now)
         """), {
             "email": author_email_clean,
-            "title": "Submission Received",
-            "message": f"Your work '{blog.title}' has been received and is under review.",
+            "title": f"{type_label} Received",
+            "message": f"Your {type_label.lower()} '{blog.title}' has been received and is under review.",
             "now": datetime.utcnow()
         })
         db.commit()
@@ -278,18 +282,21 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
     # Notifications handling
     if current_status == 'approved' and new_status == 'approved':
         if author_email_clean:
-            send_simulated_email(
+            send_published_updated_email(
                 to_email=author_email_clean,
-                subject="Published Climate Submission Updated",
-                body=f"Hello {blog.author_name},\n\nYour published submission '{blog.title}' has been updated with editorial adjustments by an administrator.\n\nThe live post on the platform and the AI knowledge base have been updated."
+                author_name=blog.author_name,
+                title=blog.title,
+                post_type=blog.post_type,
+                blog_id=blog_id
             )
+            type_label = "Research Paper" if blog.post_type == "research" else "Community Story"
             db.execute(text("""
                 INSERT INTO notifications (user_email, title, message, is_read, created_at)
                 VALUES (:email, :title, :message, FALSE, :now)
             """), {
                 "email": author_email_clean,
-                "title": "Published Blog Updated ✍️",
-                "message": f"Your published work '{blog.title}' was updated with editorial changes.",
+                "title": f"Published {type_label} Updated ✍️",
+                "message": f"Your published {type_label.lower()} '{blog.title}' was updated with editorial changes.",
                 "now": datetime.utcnow()
             })
             db.commit()
@@ -297,24 +304,21 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
 
     if new_status != "draft" and author_email_clean:
         is_re_submission = row.get('status') == 'rejected'
-        subject = "Climate Submission Resubmitted" if is_re_submission else "Climate Submission Received"
-        body_text = (
-            f"Hello {blog.author_name},\n\nYour revised submission '{blog.title}' has been successfully received and is currently under review."
-            if is_re_submission else
-            f"Hello {blog.author_name},\n\nYour submission '{blog.title}' has been successfully received and is currently under review."
+        send_submission_received_email(
+            to_email=author_email_clean,
+            author_name=blog.author_name,
+            title=blog.title,
+            post_type=blog.post_type,
+            is_resubmission=is_re_submission
         )
-        notif_title = "Submission Revised" if is_re_submission else "Submission Received"
+        type_label = "Research Paper" if blog.post_type == "research" else "Community Story"
+        notif_title = f"{type_label} Revised" if is_re_submission else f"{type_label} Received"
         notif_msg = (
-            f"Your corrected work '{blog.title}' has been resubmitted and is under review."
+            f"Your corrected {type_label.lower()} '{blog.title}' has been resubmitted and is under review."
             if is_re_submission else
-            f"Your work '{blog.title}' has been received and is under review."
+            f"Your {type_label.lower()} '{blog.title}' has been received and is under review."
         )
 
-        send_simulated_email(
-            to_email=author_email_clean,
-            subject=subject,
-            body=body_text
-        )
         db.execute(text("""
             INSERT INTO notifications (user_email, title, message, is_read, created_at)
             VALUES (:email, :title, :message, FALSE, :now)
@@ -342,28 +346,29 @@ def approve_blog(blog_id: int, db: Session = Depends(get_db), admin_user: User =
     db.commit()
     
     if row.get('author_email'):
+        author_email_clean = row['author_email'].strip().lower()
+        post_type = row.get('post_type') or 'research'
+        type_label = "Research Paper" if post_type == "research" else "Community Story"
+        send_approval_email(
+            to_email=author_email_clean,
+            author_name=row['author_name'],
+            title=row['title'],
+            post_type=post_type,
+            blog_id=blog_id,
+            is_edited=is_edited
+        )
         if is_edited:
-            subject = "Climate Submission Approved with Edits"
-            body = (
-                f"Hello {row['author_name']},\n\n"
-                f"Your submission '{row['title']}' has been approved and published with minor edits by the administrator.\n\n"
-                f"Please log in to your dashboard to compare your original version with the published version so you can learn from the adjustments."
-            )
             notif_title = "Approved with Edits ✍️"
-            notif_msg = f"Your work '{row['title']}' has been approved with minor admin edits. Click to view comparison!"
+            notif_msg = f"Your {type_label.lower()} '{row['title']}' has been approved with minor admin edits."
         else:
-            subject = "Climate Submission Approved"
-            body = f"Hello {row['author_name']},\n\nCongratulations! Your submission '{row['title']}' has been approved and is now live on the ARIN Climate DSS platform."
             notif_title = "Submission Approved 🎉"
-            notif_msg = f"Your work '{row['title']}' has been approved and is now live!"
-            
-        send_simulated_email(to_email=row['author_email'], subject=subject, body=body)
-        
+            notif_msg = f"Your {type_label.lower()} '{row['title']}' has been approved and is now live!"
+
         db.execute(text("""
             INSERT INTO notifications (user_email, title, message, is_read, created_at)
             VALUES (:email, :title, :message, FALSE, :now)
         """), {
-            "email": row['author_email'],
+            "email": author_email_clean,
             "title": notif_title,
             "message": notif_msg,
             "now": datetime.utcnow()
@@ -429,18 +434,23 @@ def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db),
     db.commit()
 
     if row.get('author_email'):
-        send_simulated_email(
-            to_email=row['author_email'],
-            subject="Revision Requested for Submission",
-            body=f"Hello {row['author_name']},\n\nYour submission '{row['title']}' requires revision before it can be approved.\n\nAdmin Feedback:\n{action.feedback}\n\nPlease log in to your dashboard to edit and resubmit your work."
+        author_email_clean = row['author_email'].strip().lower()
+        post_type = row.get('post_type') or 'research'
+        type_label = "Research Paper" if post_type == "research" else "Community Story"
+        send_revision_requested_email(
+            to_email=author_email_clean,
+            author_name=row['author_name'],
+            title=row['title'],
+            post_type=post_type,
+            feedback=action.feedback or ''
         )
         db.execute(text("""
             INSERT INTO notifications (user_email, title, message, is_read, created_at)
             VALUES (:email, :title, :message, FALSE, :now)
         """), {
-            "email": row['author_email'],
+            "email": author_email_clean,
             "title": "Revision Requested ⚠️",
-            "message": f"Your work '{row['title']}' requires revision. Feedback: {action.feedback}",
+            "message": f"Your {type_label.lower()} '{row['title']}' requires revision. Feedback: {action.feedback}",
             "now": datetime.utcnow()
         })
         db.commit()
