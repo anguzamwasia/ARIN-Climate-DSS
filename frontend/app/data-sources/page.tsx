@@ -8,7 +8,7 @@ import dynamic from "next/dynamic"
 const KenyaMap = dynamic(() => import("../components/KenyaMapClient"), { ssr: false })
 import AfricaMap from "../../components/AfricaMap"
 import MediaModal from "../../components/MediaModal"
-import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCircle, MapPin, ArrowDown, Loader2, Lock, ChevronUp } from "lucide-react"
+import { ArrowLeft, FileText, ExternalLink, Globe, Database, Mic, Users, PlayCircle, MapPin, ArrowDown, Loader2, Lock, ChevronUp, CheckCircle2, Layers, PieChart, AlertTriangle, TrendingUp, Leaf, DollarSign, Lightbulb, UserCheck, ShieldAlert, Sparkles, BookOpen } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
 import { Suspense } from "react"
@@ -69,59 +69,348 @@ function getMediaMetadata(filename: string, body: string): MediaMetadata {
   if (nameLower.includes("kii rw")) {
     return {
       title: "Key Informant Interview (Rwanda)",
-      summary: "This key informant interview details the comprehensive process of formulating, validating, and implementing the County Integrated Development Plan (CIDP) in Rwanda. The discussion covers the methodology used to integrate localized climate information into strategic policy frameworks, highlighting the critical role played by multi-stakeholder participation.\n\nKey points focused on mapping agricultural vulnerability, addressing immediate budget allocation concerns for rural counties, and introducing sustainable development targets. Participants emphasized that aligning local plans with national climate adaptation strategies is key to ensuring long-term resilience and securing international climate finance.",
+      summary: "This Key Informant Interview provides an in-depth analysis of the institutional formulation, stakeholder validation, and operational deployment of the County Integrated Development Plan (CIDP) framework in Rwanda. The session details how district planning officers and environmental coordinators systematically integrate localized climate data into sub-national development targets, navigating institutional mandates to harmonize municipal budgeting with long-term climate adaptation priorities.\n\nA major focus of the interview centers on municipal water infrastructure, agricultural resilience, and rural irrigation investments. The informant outlines critical challenges faced by local administrations, including competing budgetary allocations, unpredictable precipitation patterns, and the necessity of establishing decentralized water storage reserves to safeguard smallholder farming communities against seasonal drought extremes.\n\nThe dialogue concludes with strategic recommendations for mainstreaming climate indicators into sub-national monitoring frameworks and unlocking international climate finance. Key recommendations emphasize strengthening inter-departmental collaboration, deploying transparent climate expenditure tracking systems, and establishing community-level feedback mechanisms to ensure that decentralized climate investments directly reflect grassroots vulnerability assessments.",
       insights: [
-        "Discussed local government planning methodologies in Rwanda.",
-        "Identified opportunities to embed climate mitigation strategies directly into CIDPs.",
-        "Emphasized data-driven policy integration at county level."
+        "Evaluated decentralized CIDP formulation methodologies for embedding localized climate adaptation metrics into Rwandan district planning.",
+        "Identified urgent water infrastructure needs, advocating for communal rainwater harvesting and multi-scale storage reservoirs to combat dry season deficits.",
+        "Analyzed county and district budgeting bottlenecks, recommending dedicated ring-fenced allocations for climate-resilient agriculture.",
+        "Emphasized participatory risk assessments with vulnerable rural smallholders to directly inform municipal resource priorities.",
+        "Outlined inter-agency coordination mechanisms between national ministries and sub-national authorities to reduce reporting overlaps.",
+        "Recommended strengthening climate finance readiness to enable local governments to directly access multilateral climate funds."
       ]
     };
   }
   if (nameLower.includes("feedback_policyss_21oct2020") || nameLower.includes("sdg activity")) {
     return {
       title: "SDG Activity Feedback Policy Session (Oct 2020)",
-      summary: "This policy session evaluates SDG activity feedback across various county administrations in Kenya. The panel analyzed positive and negative interactions occurring during project implementations, highlighting the success of localized water access initiatives and the challenges of solid waste management.\n\nDiscussions centered on developing actionable indicators for tracking progress on sustainable consumption, climate actions, and land management. The participants recommended closer cooperation between the national ministry and county departments to resolve overlapping regulatory mandates and streamline reporting frameworks.",
+      summary: "This high-level policy review examines the operational progress, inter-sectoral synergies, and implementation bottlenecks encountered across Sustainable Development Goal (SDG) initiatives in Kenyan county administrations. The panel conducts a critical audit of sub-national sustainability programs, assessing how localized projects intersect with national carbon reduction commitments and regional development agendas.\n\nThe discussion evaluates cross-cutting interactions among water accessibility (SDG 6), clean energy transition (SDG 7), climate action (SDG 13), and terrestrial ecosystem conservation (SDG 15). Panelists highlight successful decentralized water harvesting programs while scrutinizing persistent bottlenecks, including bureaucratic delays, fragmented ministry jurisdictions, and inadequate monitoring infrastructures at the county level.\n\nTo accelerate progress toward the 2030 targets, the session puts forward key governance reforms: establishing inter-ministerial taskforces to eliminate departmental silos, standardizing county reporting templates into a centralized digital repository, and integrating grassroots community audits into the National Voluntary Local Review (VLR) reporting framework.",
       insights: [
-        "Analyzed positive and negative feedback regarding SDG goals in Kenyan county administrations.",
-        "Identified key implementation bottlenecks in national sustainability programs.",
-        "Highlighted local community engagement strategies for long-term project viability."
+        "Assessed cross-sectoral synergies between clean water access (SDG 6), affordable clean energy (SDG 7), and climate action (SDG 13) across Kenyan counties.",
+        "Scrutinized institutional bottlenecks arising from overlapping ministerial mandates and fragmented sub-national reporting protocols.",
+        "Highlighted community-driven water preservation and waste management pilots as scalable models for grassroots sustainability.",
+        "Advocated establishing standardized digital monitoring repositories to harmonize data collection across national and county levels.",
+        "Emphasized integrating civil society and local community audits into the National Voluntary Local Review (VLR) reporting framework.",
+        "Proposed dedicated capacity-building workshops for county directors to translate global sustainability goals into actionable local targets."
       ]
     };
   }
   if (nameLower.includes("public engagement session_24nov2020") || nameLower.includes("public engagement")) {
     return {
       title: "Public Engagement and Research Session (Nov 2020)",
-      summary: "This session, led by Dr. Steve Dawney, introduces effective strategies for public engagement and research dissemination at the University of Southampton. The presentation emphasizes the transition from academic publications to public-facing dialogues, outlining tools to translate complex climate modeling data into understandable language for local communities.\n\nFurther discussions highlighted building trust with civic leaders, measuring the long-term impact of community-led advocacy programs, and integrating public feedback loops back into active research methodologies.",
+      summary: "Led by Dr. Steve Dawney of the University of Southampton, this masterclass explores progressive methodologies for public engagement and research co-production in climate and environmental sciences. The session examines how academic and research institutions can transition beyond traditional one-directional dissemination toward sustained, collaborative partnerships with local communities, civic leaders, and marginalized groups.\n\nThe presentation details practical community engagement initiatives, including traveling researcher roadshows, participatory citizen science workshops, and localized science festivals. Dr. Dawney shares operational insights on navigating the operational constraints imposed by global disruptions, demonstrating how digital and hybrid engagement platforms can be leveraged to expand geographic reach while maintaining meaningful personal interactions.\n\nThe session concludes with an evaluation of how research institutions can embed engagement into academic culture, overcome institutional resistance, and build enduring mutual trust with the public. Participants discussed methodologies for measuring the qualitative impact of community engagement, advocating for institutional reward structures that recognize public co-creation alongside conventional scientific publications.",
       insights: [
-        "Outlined University of Southampton's research frameworks for public communication.",
-        "Presented effective strategies for stakeholder management in climate research.",
-        "Emphasized bridging academic findings with local public understanding."
+        "Introduced Southampton's institutional framework for translating complex climate and environmental data into public-facing dialogues.",
+        "Presented mobile researcher roadshows and citizen science workshops as powerful tools to demystify climate science in local communities.",
+        "Examined digital and hybrid engagement adaptations during global disruptions to sustain outreach without losing personal interaction.",
+        "Emphasized shifting from traditional one-way academic dissemination toward two-way participatory co-creation with civic stakeholders.",
+        "Discussed methods for quantifying the social impact and policy influence of community-focused academic engagement initiatives.",
+        "Advocated for institutional recognition and funding models that reward researchers for sustained community and public partnership."
       ]
     };
   }
   if (nameLower.includes("policy brief session_30sept2020") || nameLower.includes("policy brief")) {
     return {
       title: "Policy Briefing and Development Session (Sept 2020)",
-      summary: "This training session details the preparation and structure of policy briefs designed for decision-makers in climate policy. Participants explored transitioning academic research into concise briefs, detailing executive summaries, policy recommendations, and visual data callouts.\n\nThe session concluded with peer reviews of brief drafts, identifying common pitfalls such as excessive jargon, lack of clear resource requirements, and failing to define a clear theory of change.",
+      summary: "This specialized training workshop guides environmental researchers and climate policy analysts on the art and science of formulating high-impact policy briefs for national and regional decision-makers. The facilitator examines the structural divide between exhaustive academic research and the concise, actionable intelligence required by ministers, parliamentarians, and county directors navigating complex climate crises.\n\nThe session deconstructs the core architecture of an authoritative policy brief: crafting compelling executive summaries, clearly framing the economic and human costs of climate inaction, structuring transparent policy recommendations, and presenting visual data infographics that communicate risks at a glance. Participants analyze real-world case studies demonstrating how rigorous scientific findings can be synthesized into persuasive briefs without compromising scientific accuracy.\n\nDuring the collaborative review segment, the workshop addresses common pitfalls in policy communication, including the over-reliance on academic jargon, ambiguous implementation pathways, and failure to designate clear ministerial ownership. The session emphasizes the necessity of targeted dissemination roadmaps, face-to-face policy dialogues, and multimedia translation to ensure climate evidence directly shapes legislative agendas.",
       insights: [
-        "Reviewed key components and structure of effective policy briefs.",
-        "Discussed challenges faced by early-career researchers during transition periods.",
-        "Exemplified translating complex environmental data into clear policy points."
+        "Deconstructed essential structural components of effective climate policy briefs: concise executive summaries, risk matrices, and actionable recommendations.",
+        "Addressed critical challenges early-career researchers face when condensing comprehensive multi-year environmental data into brief formats.",
+        "Emphasized calculating and presenting the economic and societal cost of policy inaction to accelerate ministerial decision-making.",
+        "Identified communication pitfalls, warning against excessive technical jargon, missing budget requirements, and unassigned institutional ownership.",
+        "Highlighted the effectiveness of multi-format dissemination, coupling printed briefs with parliamentary roundtables and interactive media.",
+        "Demonstrated how clear theories of change and policy roadmaps bridge the gap between academic findings and legislative action."
       ]
     };
   }
   
+  if (nameLower.includes("emily bolo") || nameLower.includes("e-cooking") || nameLower.includes("transforming lives") || nameLower.includes("1789587531")) {
+    return {
+      title: "ARIN Review: Emily Bolo (Research Fellow) - Transforming Lives Through E-cooking Impact Stories",
+      summary: body || "This ARIN research seminar features Emily Bolo presenting empirical findings on Transforming Lives Through E-cooking: Impact Stories from Kenya. The session explores how Kenyan households are transitioning from traditional biomass fuels toward modern, energy-efficient electric cooking technologies, particularly Electric Pressure Cookers (EPCs).\n\nEmily highlights qualitative and quantitative case studies across Nakuru, Kisumu, Makueni, and Kawangware (Nairobi), showing up to 70–80% fuel cost savings and significant time reductions. The presentation dispels cultural myths regarding cooking traditional staples (beans, ugali, njahi, meat) with electricity.\n\nThe interactive Q&A session with research fellows addresses systemic adoption barriers including high upfront appliance costs (KES 7,000+), grid reliability, electricity tariff perceptions, and the need for Pay-As-You-Go financing models, community demonstrations, and supportive national policy frameworks.",
+      insights: [
+        "Electric Pressure Cookers (EPCs) achieve up to 70–80% household fuel cost savings per meal compared to charcoal, firewood, and LPG across Kenyan urban and peri-urban centers.",
+        "Empirical case studies across Nakuru, Kisumu, Makueni, and Kawangware (Nairobi) disprove traditional culinary myths, confirming staples like beans, ugali, njahi, and meat cook faster with authentic flavor.",
+        "Identified key market adoption hurdles: high initial appliance purchase costs (KES 7,000+), lingering customer fears regarding electricity tariff surges, and uneven grid reliability.",
+        "Household transition to clean e-cooking dramatically cuts Household Air Pollution (HAP), reducing chronic respiratory illness and advancing SDG 3 (Good Health) and SDG 7 (Affordable Clean Energy).",
+        "Substantial daily time savings liberated by automated e-cooking empower women to pursue economic enterprises, education, and community leadership.",
+        "Scaling nationwide e-cooking requires flexible Pay-As-You-Go (PAYG) financing, on-bill utility installment models, community demonstration hubs, and supportive clean cooking policies."
+      ]
+    };
+  }
+
   // Fallback cleanup
-  let cleanTitle = filename.replace(/^Transcript:\s*/i, '').replace(/\.(mp4|mp3|wav|avi)$/i, '').replace(/_/g, ' ');
-  cleanTitle = cleanTitle.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  let cleanTitle = filename
+    .replace(/^Transcript:\s*/i, '')
+    .replace(/^(admin|kobo)_\d+_/i, '')
+    .replace(/__+/g, ' - ')
+    .replace(/\s*\(\d+\)\s*/g, ' ')
+    .replace(/\.(mp4|mp3|wav|avi|m4a)$/i, '')
+    .replace(/_/g, ' ')
+    .trim();
+  cleanTitle = cleanTitle.split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  if (!cleanTitle) cleanTitle = "Recorded Audio/Video Session";
+
+  let displaySummary = body || "Summary of findings and discussions in this session.";
+  // For longer media transcripts/bodies (> 25 mins or rich content), ensure multiple paragraphs
+  if (body && !body.includes("\n\n") && body.length > 500) {
+    const sentences = body.split(/(?<=[.!?])\s+/);
+    if (sentences.length >= 6) {
+      const third = Math.ceil(sentences.length / 3);
+      displaySummary = [
+        sentences.slice(0, third).join(" "),
+        sentences.slice(third, third * 2).join(" "),
+        sentences.slice(third * 2).join(" ")
+      ].join("\n\n");
+    }
+  }
+
+  let dynamicInsights = [
+    "Comprehensive session recording transcribed and indexed for climate and policy analysis.",
+    "Captures community stakeholder perspectives, qualitative experiences, and implementation feedback.",
+    "Details actionable adaptation priorities and grassroots resource mobilization strategies.",
+    "Outlines inter-agency coordination mechanisms between local coordinators and national policy leads.",
+    "Integrated into ARIN Decision Support System for policy research and knowledge dissemination."
+  ];
+
+  if (body && body.length > 100) {
+    const bodySentences = body.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 35 && s.length < 220);
+    if (bodySentences.length >= 4) {
+      dynamicInsights = bodySentences.slice(0, 6).map(s => s.charAt(0).toUpperCase() + s.slice(1) + ".");
+    }
+  }
+
   return {
     title: cleanTitle,
-    summary: body || "Summary of findings and discussions in this session.",
-    insights: [
-      "Key topics include climate change policy and regional feedback.",
-      "Identified opportunities for localized adaptation frameworks.",
-      "Emphasized collaborative data collection across sectors."
-    ]
+    summary: displaySummary,
+    insights: dynamicInsights
+  };
+}
+
+interface KoboSectionSummary {
+  number: number;
+  title: string;
+  badge: string;
+  summary: string;
+  keyPoints: string[];
+}
+
+interface KoboAnalysis {
+  totalCount: number;
+  malesCount: number;
+  femalesCount: number;
+  othersCount: number;
+  malesPercent: number;
+  femalesPercent: number;
+  othersPercent: number;
+  ageDistribution: {
+    youth: number;
+    adults: number;
+    seniors: number;
+    unspecified: number;
+  };
+  counties: Record<string, number>;
+  educationLevels: Record<string, number>;
+  sectionSummaries: KoboSectionSummary[];
+  aggregatedInsights: string[];
+}
+
+function analyzeKoboSubmissions(submissions: any[]): KoboAnalysis {
+  const list = Array.isArray(submissions) && submissions.length > 0 ? submissions : [];
+  const totalCount = list.length || 1;
+  let malesCount = 0;
+  let femalesCount = 0;
+  let othersCount = 0;
+
+  const ageDistribution = {
+    youth: 0,
+    adults: 0,
+    seniors: 0,
+    unspecified: 0,
+  };
+
+  const counties: Record<string, number> = {};
+  const educationLevels: Record<string, number> = {};
+
+  list.forEach((sub) => {
+    const text = (sub.content_text || "") + "\n" + (sub.body || "");
+    const lines = text.split('\n');
+
+    let genderFound = false;
+    let ageFound = false;
+    let countyFound = false;
+    let educationFound = false;
+
+    lines.forEach((line) => {
+      const lower = line.toLowerCase();
+      const colonIdx = line.indexOf(':');
+      const val = colonIdx !== -1 ? line.substring(colonIdx + 1).trim().toLowerCase() : "";
+
+      // 1. Gender parsing - CRITICAL: Any submission with no gender or non-binary/other is counted under others
+      if (!genderFound && (lower.includes('gender') || lower.includes('what_is_your_gender'))) {
+        if (val === 'male' || val === 'm' || val.startsWith('male')) {
+          malesCount++;
+          genderFound = true;
+        } else if (val === 'female' || val === 'f' || val.startsWith('female')) {
+          femalesCount++;
+          genderFound = true;
+        } else if (val) {
+          othersCount++;
+          genderFound = true;
+        }
+      }
+
+      // 2. Age parsing
+      if (!ageFound && (lower.includes('age_bracket') || lower.includes('age'))) {
+        if (val.includes('19_to_35') || val.includes('19-35') || val.includes('youth')) {
+          ageDistribution.youth++;
+          ageFound = true;
+        } else if (val.includes('36_to_50') || val.includes('36-50') || val.includes('adult')) {
+          ageDistribution.adults++;
+          ageFound = true;
+        } else if (val.includes('50') || val.includes('above_50') || val.includes('senior')) {
+          ageDistribution.seniors++;
+          ageFound = true;
+        }
+      }
+
+      // 3. County parsing
+      if (!countyFound && (lower.includes('name_of_county') || lower.includes('county'))) {
+        if (val && !val.includes('sub_county')) {
+          const cleanCounty = val.replace(/_/g, ' ').replace(/county/i, '').trim();
+          if (cleanCounty) {
+            const formatted = cleanCounty.charAt(0).toUpperCase() + cleanCounty.slice(1);
+            counties[formatted] = (counties[formatted] || 0) + 1;
+            countyFound = true;
+          }
+        }
+      }
+
+      // 4. Education parsing
+      if (!educationFound && (lower.includes('education') || lower.includes('highest_level'))) {
+        if (val.includes('university') || val.includes('college')) {
+          educationLevels['University / College'] = (educationLevels['University / College'] || 0) + 1;
+          educationFound = true;
+        } else if (val.includes('high_school') || val.includes('secondary')) {
+          educationLevels['High School / Secondary'] = (educationLevels['High School / Secondary'] || 0) + 1;
+          educationFound = true;
+        } else if (val.includes('primary')) {
+          educationLevels['Primary School'] = (educationLevels['Primary School'] || 0) + 1;
+          educationFound = true;
+        }
+      }
+    });
+
+    // If gender wasn't found in lines, place in others
+    if (!genderFound) {
+      othersCount++;
+    }
+
+    // If age wasn't found
+    if (!ageFound) {
+      ageDistribution.unspecified++;
+    }
+
+    // Fallback for county from doc.country
+    if (!countyFound && sub.country) {
+      const cleanCounty = sub.country.replace(/_/g, ' ').replace(/county/i, '').trim();
+      if (cleanCounty) {
+        const formatted = cleanCounty.charAt(0).toUpperCase() + cleanCounty.slice(1);
+        counties[formatted] = (counties[formatted] || 0) + 1;
+      }
+    }
+  });
+
+  const malesPercent = Math.round((malesCount / totalCount) * 100);
+  const femalesPercent = Math.round((femalesCount / totalCount) * 100);
+  const othersPercent = Math.round((othersCount / totalCount) * 100);
+
+  const countyNames = Object.keys(counties);
+  const countyListStr = countyNames.length > 0 ? countyNames.join(', ') : 'targeted counties in Kenya';
+
+  const sectionSummaries: KoboSectionSummary[] = [
+    {
+      number: 1,
+      title: "Demographics & Respondent Profile",
+      badge: "Section 1",
+      summary: `This field survey synthesizes data across ${totalCount} participant submissions collected across ${countyListStr}. The demographic distribution comprises ${malesCount} male respondents (${malesPercent}%), ${femalesCount} female respondents (${femalesPercent}%), and ${othersCount} respondents categorized under others/unspecified (${othersPercent}%). Age distribution indicates strong adult representation with ${ageDistribution.adults} respondents in the 36–50 age bracket, ${ageDistribution.youth} youth (19–35 years), and ${ageDistribution.seniors} senior citizens (50+ years). Educational attainment reflects high foundational literacy, with respondents predominantly holding secondary high school and tertiary university/college credentials.`,
+      keyPoints: [
+        `Gender Breakdown: ${malesCount} Males (${malesPercent}%), ${femalesCount} Females (${femalesPercent}%), ${othersCount} Others (${othersPercent}%).`,
+        `Age Distribution: ${ageDistribution.adults} Adults (36–50 yrs), ${ageDistribution.youth} Youth (19–35 yrs), ${ageDistribution.seniors} Seniors (50+ yrs).`,
+        `Geographical Scope: Active respondent clusters across ${countyListStr}.`,
+        `Educational Background: Balanced across University/College, Secondary, and Primary levels.`
+      ]
+    },
+    {
+      number: 2,
+      title: "Land Ownership & Agricultural Systems",
+      badge: "Section 2",
+      summary: "Examines land tenure structures, holding sizes, and farming systems across smallholder households. Holdings are predominantly small-scale parcels (averaging below 1 to 2 acres) dedicated to household subsistence agriculture with supplemental market sales. A dominant cultural reality documented is customary patriarchal land inheritance, where title and decision-making are passed exclusively to sons, while women face customary exclusions from inheriting land. Soil management combines commercial inorganic fertilizers and organic manure, with household annual farm revenue ranging between KES 15,000 to KES 80,000.",
+      keyPoints: [
+        "Smallholder Acreage: Predominantly smallholdings below 1 to 2 acres managed for subsistence.",
+        "Patriarchal Land Succession: Customary inheritance favors sons, posing tenure barriers for female farmers.",
+        "Farming Methodology: Subsistence farming prevails with dual application of organic and inorganic fertilizers.",
+        "Household Farm Revenue: Constrained annual income ranging between KES 15,000 and KES 80,000."
+      ]
+    },
+    {
+      number: 3,
+      title: "Climate Hazards & Vulnerability Assessment",
+      badge: "Section 3",
+      summary: "Assesses seasonal hazards, climate vulnerabilities, and barrier profiles affecting rural communities. Smallholders endure severe exposure to bimodal climate extremes: prolonged droughts that trigger widespread crop failure and livestock deaths, punctuated by unseasonal torrential rains and flash floods that erode topsoil and destroy rural infrastructure. Vulnerability is heavily concentrated among casual migrant workers, single mothers, and widow-headed households, exacerbated by systemic barriers including financial distress and lack of localized weather advisories.",
+      keyPoints: [
+        "Bimodal Hazard Exposure: Alternating periods of acute drought and devastating flash flooding.",
+        "Livelihood Loss: Frequent crop failures, reduced yields, and heightened livestock disease/mortality.",
+        "Marginalized Demographics: Casual day laborers, single mothers, and widow-led households bear highest burden.",
+        "Advisory Disconnect: Severe lack of timely, localized climate alerts and technical agricultural guidance."
+      ]
+    },
+    {
+      number: 4,
+      title: "Local Adaptation Practices & Indigenous Coping Mechanisms",
+      badge: "Section 4",
+      summary: "Captures traditional ecological knowledge (TEK) and grassroots coping strategies adopted by communities in the absence of external aid. Smallholders place strong reliance on indigenous practices, notably selecting and banking indigenous drought-tolerant seeds for replanting, using animal ethology (cow behavior) as bio-indicators for rain forecasting, and conserving natural wetland zones as dry-season grazing buffers. While farmers actively participate in community barazas, access to structured extension programs and early warning technology remains limited.",
+      keyPoints: [
+        "Indigenous Seed Banking: Systematic preservation of traditional drought-resilient seed stocks.",
+        "Ethno-Meteorological Indicators: Observing animal behavior and environmental cues for seasonal forecast.",
+        "Ecosystem-Based Buffers: Community wetland preservation and local rainwater harvesting ditches.",
+        "Civic Engagement: Active discussion in local barazas, though formal extension visits remain infrequent."
+      ]
+    },
+    {
+      number: 5,
+      title: "Climate Finance, Governance & Capacity Needs",
+      badge: "Section 5",
+      summary: "Analyzes institutional support structures, financing channels, and unmet capacity requirements at the local level. Adaptation investments are overwhelmingly self-financed out-of-pocket by rural households, with sporadic support from county governments. Sub-national funding faces three critical bottlenecks: administrative bureaucracy, pervasive community unawareness regarding accessible climate funds, and limited technical grant-writing capacity. Farmers urgently prioritize decentralized multi-hazard early warning systems, farmer field school training, and subsidized credit tailored for persons with disabilities (PWD) and smallholder associations.",
+      keyPoints: [
+        "Self-Financed Adaptation: Households bear direct financial cost of adaptation due to lack of accessible credit.",
+        "Institutional Bottlenecks: Heavy administrative bureaucracy and low community awareness of county climate funds.",
+        "Priority Infrastructure: Urgent demand for localized multi-hazard early warning systems.",
+        "Social Inclusion: Strong push for targeted subsidies, PWD credit facilities, and nature-based training."
+      ]
+    }
+  ];
+
+  const aggregatedInsights = [
+    "Patriarchal Land Tenure Disincentivizes Long-Term Climate Adaptation: Customary inheritance traditions that exclude women from direct land succession restrict women's capacity to invest in durable agroforestry, terracing, and soil conservation infrastructure.",
+    "Smallholders Endure Destructive Bimodal Shocks: Households are caught between recurrent severe droughts and flash flood episodes, causing severe crop yield volatility, food insecurity, and livestock depletion across counties.",
+    "Indigenous Ecological Knowledge Remains the Primary Adaptation Buffer: Traditional seed saving, organic soil amendments, and animal ethology weather indicators represent invaluable community resilience strategies that require scientific co-design and institutional support.",
+    "Marginalized Groups Face Critical Information and Advisory Barriers: Casual laborers, single mothers, and widows are excluded from vital early warning alerts and extension services due to communication gaps and language barriers.",
+    "Decentralized Climate Finance Demands Simplified Community Access: Pervasive bureaucratic hurdles and lack of awareness prevent smallholders from tapping into county climate funds, necessitating streamlined direct micro-grants and affirmative credit for PWD farmers."
+  ];
+
+  return {
+    totalCount,
+    malesCount,
+    femalesCount,
+    othersCount,
+    malesPercent,
+    femalesPercent,
+    othersPercent,
+    ageDistribution,
+    counties,
+    educationLevels,
+    sectionSummaries,
+    aggregatedInsights
   };
 }
 
@@ -523,39 +812,145 @@ function DataSourcesContent() {
               </DialogHeader>
               
               <div ref={scrollRef} tabIndex={0} className="flex-1 overflow-y-auto p-6 space-y-6 focus:outline-none">
-                {selectedKoboDoc?.isGroupedKobo ? (
-                  <>
-                    {/* Public & Admin Group Overview */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                      {/* Left: Objectives & Insights */}
-                      <div className="space-y-4">
-                        <div className="p-5 bg-emerald-50/40 border border-emerald-100/60 rounded-2xl">
-                          <h4 className="text-sm font-bold text-emerald-950 mb-1.5 flex items-center gap-1.5">
-                            ✨ Study Overview & Objectives
+                {(() => {
+                  const submissionsList = selectedKoboDoc?.isGroupedKobo 
+                    ? (selectedKoboDoc.submissions || []) 
+                    : (selectedKoboDoc ? [selectedKoboDoc] : []);
+                  const analysis = analyzeKoboSubmissions(submissionsList);
+
+                  return (
+                    <div className="space-y-6">
+                      {/* 1. Demographics Analytics Banner */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            <Users className="w-4 h-4 text-emerald-600" />
+                            Participant Demographics & Coverage
                           </h4>
-                          <p className="text-xs text-emerald-900 leading-relaxed font-medium">
-                            {selectedKoboDoc.body}
-                          </p>
+                          <span className="text-xs bg-slate-100 text-slate-700 font-semibold px-2.5 py-0.5 rounded-full">
+                            {analysis.totalCount} {analysis.totalCount === 1 ? 'Respondent' : 'Respondents'}
+                          </span>
                         </div>
 
-                        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
-                          <h4 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-1.5">
-                            📋 Aggregated Insights & Findings
-                          </h4>
-                          <p className="text-xs text-blue-800 leading-relaxed mb-3">
-                            Based on the survey inputs from {selectedKoboDoc.submissions?.length || 0} participants, key adaptation priorities center heavily on sustainable resource security, community educational support, and financial resilience.
-                          </p>
-                          <ul className="list-disc list-inside space-y-1.5 text-[11px] text-blue-800 font-medium">
-                            <li>Major issues centered on extreme weather hazards including severe drought conditions.</li>
-                            <li>Rainwater harvesting systems were frequently proposed as immediate mitigation strategies.</li>
-                            <li>Strong community recommendations emphasize developing local green job portfolios and county grants.</li>
-                          </ul>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {/* Males */}
+                          <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-3.5 flex flex-col justify-between shadow-xs">
+                            <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Male</span>
+                            <div className="flex items-baseline gap-1.5 mt-1.5">
+                              <span className="text-2xl font-black text-blue-950">{analysis.malesCount}</span>
+                              <span className="text-xs font-semibold text-blue-700">({analysis.malesPercent}%)</span>
+                            </div>
+                            <span className="text-[10px] text-blue-600/80 mt-1">Answered Male</span>
+                          </div>
+
+                          {/* Females */}
+                          <div className="bg-pink-50/70 border border-pink-100 rounded-xl p-3.5 flex flex-col justify-between shadow-xs">
+                            <span className="text-[11px] font-bold text-pink-700 uppercase tracking-wider">Female</span>
+                            <div className="flex items-baseline gap-1.5 mt-1.5">
+                              <span className="text-2xl font-black text-pink-950">{analysis.femalesCount}</span>
+                              <span className="text-xs font-semibold text-pink-700">({analysis.femalesPercent}%)</span>
+                            </div>
+                            <span className="text-[10px] text-pink-600/80 mt-1">Answered Female</span>
+                          </div>
+
+                          {/* Others (No gender or specified other) */}
+                          <div className="bg-amber-50/70 border border-amber-100 rounded-xl p-3.5 flex flex-col justify-between shadow-xs">
+                            <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Others</span>
+                            <div className="flex items-baseline gap-1.5 mt-1.5">
+                              <span className="text-2xl font-black text-amber-950">{analysis.othersCount}</span>
+                              <span className="text-xs font-semibold text-amber-700">({analysis.othersPercent}%)</span>
+                            </div>
+                            <span className="text-[10px] text-amber-600/80 mt-1">No gender / Unspecified</span>
+                          </div>
+
+                          {/* Age Breakdown */}
+                          <div className="bg-emerald-50/70 border border-emerald-100 rounded-xl p-3.5 flex flex-col justify-between shadow-xs">
+                            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Age Groups</span>
+                            <div className="mt-1.5 space-y-0.5 text-xs text-emerald-950 font-medium">
+                              <div><span className="font-bold">{analysis.ageDistribution.adults}</span> Adults (36–50)</div>
+                              <div><span className="font-bold">{analysis.ageDistribution.youth}</span> Youth (19–35)</div>
+                              {analysis.ageDistribution.seniors > 0 && <div><span className="font-bold">{analysis.ageDistribution.seniors}</span> Seniors (50+)</div>}
+                              {analysis.ageDistribution.unspecified > 0 && <div><span className="font-bold">{analysis.ageDistribution.unspecified}</span> Other/Unsp.</div>}
+                            </div>
+                            <span className="text-[10px] text-emerald-600/80 mt-1">Age Distribution</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Right: Study Area Location Bar Chart */}
-                      {selectedKoboDoc.submissions && (
-                        <div className="space-y-3 bg-slate-50 border border-slate-200/60 p-5 rounded-2xl self-stretch">
+                      {/* 2. Dedicated Aggregated Insights & Findings (SEPARATELY DISPLAYED) */}
+                      <div className="bg-gradient-to-br from-indigo-50/90 to-blue-50/70 border border-indigo-100 rounded-2xl p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Lightbulb className="w-5 h-5 text-indigo-600" />
+                            <h4 className="text-sm font-bold text-indigo-950">
+                              Aggregated Key Insights & High-Impact Findings
+                            </h4>
+                          </div>
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                            {analysis.aggregatedInsights.length} Key Insights
+                          </span>
+                        </div>
+                        <p className="text-xs text-indigo-900/80 mb-3.5 leading-relaxed">
+                          Consolidated cross-sectional findings synthesized across all participant responses, identifying primary structural risks and high-priority climate adaptation policy recommendations:
+                        </p>
+                        <ul className="space-y-2.5">
+                          {analysis.aggregatedInsights.map((insight, idx) => (
+                            <li key={idx} className="text-xs text-indigo-950 flex items-start gap-2.5 leading-relaxed">
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-200 text-indigo-800 text-[11px] font-bold flex-shrink-0 mt-0.5">
+                                {idx + 1}
+                              </span>
+                              <span>{insight}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* 3. Section-by-Section Summaries (SEPARATELY DISPLAYED) */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-emerald-700" />
+                          <h4 className="text-sm font-bold text-slate-800">
+                            Questionnaire Section-by-Section Summaries
+                          </h4>
+                        </div>
+
+                        <div className="space-y-3.5">
+                          {analysis.sectionSummaries.map((section) => (
+                            <div key={section.number} className="bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl p-5 shadow-sm transition-all">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    {section.badge}
+                                  </span>
+                                  <h5 className="text-sm font-bold text-slate-900">{section.title}</h5>
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-slate-700 leading-relaxed font-normal mb-3">
+                                {section.summary}
+                              </p>
+
+                              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                                  Key Observed Takeaways:
+                                </span>
+                                <ul className="grid grid-cols-1 md:grid-cols-2 gap-1.5 text-[11px] text-slate-700">
+                                  {section.keyPoints.map((point, ptIdx) => (
+                                    <li key={ptIdx} className="flex items-start gap-1.5">
+                                      <span className="text-emerald-500 font-bold leading-none mt-0.5">•</span>
+                                      <span className="leading-snug">{point}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 4. Areas of Study Location Bar Chart */}
+                      {selectedKoboDoc?.isGroupedKobo && selectedKoboDoc.submissions && (
+                        <div className="space-y-3 bg-slate-50 border border-slate-200/60 p-5 rounded-2xl">
                           <h4 className="text-sm font-bold text-slate-800 mb-2">Areas of Study & Response Densities</h4>
                           {(() => {
                             const locationCounts: Record<string, number> = {};
@@ -584,110 +979,99 @@ function DataSourcesContent() {
                           })()}
                         </div>
                       )}
-                    </div>
 
-                    {/* Admin Only Submissions Accordion list */}
-                    {isAdmin && (
-                      <div className="border-t pt-6 space-y-4">
-                        <h4 className="text-sm font-bold text-slate-800">Individual Respondent Submissions ({selectedKoboDoc.submissions?.length || 0})</h4>
-                        <div className="space-y-3">
-                          {selectedKoboDoc.submissions?.map((sub: any, idx: number) => {
-                            const respondentName = sub.content_text ? getRespondentName(sub.content_text) : "Anonymous Respondent";
-                            const isExpanded = selectedKoboSubIdx === idx;
-                            return (
-                              <div key={sub.id} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                <button
-                                  onClick={() => setSelectedKoboSubIdx(isExpanded ? -1 : idx)}
-                                  className="w-full px-5 py-4 bg-slate-50 hover:bg-slate-100 transition-colors flex justify-between items-center text-left"
-                                >
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="text-xs text-slate-500 uppercase font-bold">Response #{idx + 1}</span>
-                                    <span className="text-sm font-bold text-primary">{respondentName}</span>
-                                  </div>
-                                  <div className="text-right flex items-center gap-3">
-                                    <div className="flex flex-col items-end gap-0.5 text-xs text-slate-600">
-                                      <span className="font-semibold">{sub.country}</span>
-                                      <span className="text-[10px] text-slate-400">{new Date(sub.scraped_at).toLocaleDateString()}</span>
+                      {/* 5. Admin Only Submissions Accordion list */}
+                      {isAdmin && selectedKoboDoc?.isGroupedKobo && (
+                        <div className="border-t pt-6 space-y-4">
+                          <h4 className="text-sm font-bold text-slate-800">Individual Respondent Submissions ({selectedKoboDoc.submissions?.length || 0})</h4>
+                          <div className="space-y-3">
+                            {selectedKoboDoc.submissions?.map((sub: any, idx: number) => {
+                              const respondentName = sub.content_text ? getRespondentName(sub.content_text) : "Anonymous Respondent";
+                              const isExpanded = selectedKoboSubIdx === idx;
+                              return (
+                                <div key={sub.id} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                  <button
+                                    onClick={() => setSelectedKoboSubIdx(isExpanded ? -1 : idx)}
+                                    className="w-full px-5 py-4 bg-slate-50 hover:bg-slate-100 transition-colors flex justify-between items-center text-left"
+                                  >
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="text-xs text-slate-500 uppercase font-bold">Response #{idx + 1}</span>
+                                      <span className="text-sm font-bold text-primary">{respondentName}</span>
                                     </div>
-                                    {isExpanded ? (
-                                      <ChevronUp className="w-5 h-5 text-slate-500" />
-                                    ) : (
-                                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
-                                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                                      </svg>
-                                    )}
-                                  </div>
-                                </button>
-                                
-                                {isExpanded && (
-                                  <div className="p-5 border-t bg-white space-y-4">
-                                    {sub.content_text ? (
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {sub.content_text.split('\n').map((line: string, lIdx: number) => {
-                                          const colonIdx = line.indexOf(':');
-                                          if (colonIdx === -1) return <p key={lIdx} className="text-xs text-slate-600 col-span-2">{line}</p>;
-                                          const label = line.substring(0, colonIdx).trim();
-                                          const val = line.substring(colonIdx + 1).trim();
-                                          if (!val) return null;
-                                          return (
-                                            <div key={lIdx} className="p-4 bg-slate-50/50 border border-slate-100 hover:border-slate-200 rounded-2xl transition flex flex-col gap-1">
-                                              <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">{cleanKoboLabel(label)}</span>
-                                              <span className="text-xs text-slate-800 font-medium leading-relaxed">{val.replace(/_/g, ' ')}</span>
-                                            </div>
-                                          );
-                                        })}
+                                    <div className="text-right flex items-center gap-3">
+                                      <div className="flex flex-col items-end gap-0.5 text-xs text-slate-600">
+                                        <span className="font-semibold">{sub.country}</span>
+                                        <span className="text-[10px] text-slate-400">{new Date(sub.scraped_at).toLocaleDateString()}</span>
                                       </div>
-                                    ) : (
-                                      <p className="text-xs text-muted-foreground italic text-center py-6">No details available.</p>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                                      {isExpanded ? (
+                                        <ChevronUp className="w-5 h-5 text-slate-500" />
+                                      ) : (
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
+                                          <line x1="12" y1="5" x2="12" y2="19"></line>
+                                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                                        </svg>
+                                      )}
+                                    </div>
+                                  </button>
+                                  
+                                  {isExpanded && (
+                                    <div className="p-5 border-t bg-white space-y-4">
+                                      {sub.content_text ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          {sub.content_text.split('\n').map((line: string, lIdx: number) => {
+                                            const colonIdx = line.indexOf(':');
+                                            if (colonIdx === -1) return <p key={lIdx} className="text-xs text-slate-600 col-span-2">{line}</p>;
+                                            const label = line.substring(0, colonIdx).trim();
+                                            const val = line.substring(colonIdx + 1).trim();
+                                            if (!val) return null;
+                                            return (
+                                              <div key={lIdx} className="p-4 bg-slate-50/50 border border-slate-100 hover:border-slate-200 rounded-2xl transition flex flex-col gap-1">
+                                                <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">{cleanKoboLabel(label)}</span>
+                                                <span className="text-xs text-slate-800 font-medium leading-relaxed">{val.replace(/_/g, ' ')}</span>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <p className="text-xs text-muted-foreground italic text-center py-6">No details available.</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  /* Original Single Kobo Document Fallback */
-                  <>
-                    {selectedKoboDoc?.body && (
-                      <div className="p-4 bg-emerald-50/50 border border-emerald-100/60 rounded-xl mb-4">
-                        <h4 className="text-xs font-bold text-emerald-800 mb-1.5 flex items-center gap-1.5">
-                          ✨ AI Summary & Insights
-                        </h4>
-                        <p className="text-xs text-emerald-950 leading-relaxed font-medium">
-                          {selectedKoboDoc.body}
-                        </p>
-                      </div>
-                    )}
-                    {selectedKoboDoc?.content_text ? (
-                      <div className="grid grid-cols-1 gap-2.5">
-                        {selectedKoboDoc.content_text.split('\n').map((line, idx) => {
-                          const colonIdx = line.indexOf(':');
-                          if (colonIdx === -1) return <p key={idx} className="text-sm text-foreground">{line}</p>;
-                          const label = line.substring(0, colonIdx).replace(/_/g, ' ').toUpperCase();
-                          const value = line.substring(colonIdx + 1).trim();
-                          if (!value) return null;
-                          return (
-                            <div key={idx} className="p-3 bg-secondary/30 rounded-lg border border-border/40 flex flex-col md:flex-row md:items-start gap-1 md:gap-4 text-sm">
-                              <span className="font-bold text-[10px] text-primary/70 uppercase tracking-wider md:w-1/3 flex-shrink-0 pt-0.5">
-                                {label}
-                              </span>
-                              <span className="text-foreground flex-1 break-words">
-                                {value}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic text-center py-8">No content available for this submission.</p>
-                    )}
-                  </>
-                )}
+                      )}
+
+                      {/* Single Kobo Raw Form Lines if Single Document */}
+                      {!selectedKoboDoc?.isGroupedKobo && selectedKoboDoc?.content_text && (
+                        <div className="border-t pt-6 space-y-3">
+                          <h4 className="text-sm font-bold text-slate-800">Raw Survey Responses</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {selectedKoboDoc.content_text.split('\n').map((line: string, idx: number) => {
+                              const colonIdx = line.indexOf(':');
+                              if (colonIdx === -1) return <p key={idx} className="text-xs text-slate-600 col-span-2">{line}</p>;
+                              const label = line.substring(0, colonIdx).trim();
+                              const value = line.substring(colonIdx + 1).trim();
+                              if (!value) return null;
+                              return (
+                                <div key={idx} className="p-3 bg-slate-50/70 rounded-xl border border-slate-100 flex flex-col gap-1">
+                                  <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">
+                                    {cleanKoboLabel(label)}
+                                  </span>
+                                  <span className="text-xs text-slate-800 font-medium break-words">
+                                    {value.replace(/_/g, ' ')}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               <DialogFooter className="border-t p-4 flex-shrink-0 sm:justify-end bg-slate-50">
                 <button

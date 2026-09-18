@@ -63,24 +63,40 @@ export default function MediaModal({
           {/* Summary of What Was Said - Public & Admin */}
           {summary && (
             <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-              <h3 className="text-lg font-medium text-slate-900 mb-2 flex items-center gap-2">
+              <h3 className="text-lg font-medium text-slate-900 mb-3 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-slate-500" />
                 Overview of What Was Said
               </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">{summary}</p>
+              <div className="space-y-3 text-slate-700 text-sm leading-relaxed">
+                {summary.split('\n\n').map((para, pIdx) => (
+                  <p key={pIdx} className="leading-relaxed">
+                    {para.trim()}
+                  </p>
+                ))}
+              </div>
             </div>
           )}
 
           {/* Major Insights & Topics */}
           {insights && insights.length > 0 && (
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-medium text-blue-900">Key Relevant Insights</h3>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-medium text-blue-900">Key Relevant Insights</h3>
+                </div>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-200/80 text-blue-800">
+                  {insights.length} key {insights.length === 1 ? 'insight' : 'insights'}
+                </span>
               </div>
-              <ul className="list-disc list-inside space-y-2 text-blue-800">
+              <ul className="space-y-2.5 text-blue-950">
                 {insights.map((insight, idx) => (
-                  <li key={idx} className="text-sm">{insight}</li>
+                  <li key={idx} className="text-sm flex items-start gap-2.5">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold flex-shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <span className="leading-relaxed font-normal">{insight}</span>
+                  </li>
                 ))}
               </ul>
             </div>
