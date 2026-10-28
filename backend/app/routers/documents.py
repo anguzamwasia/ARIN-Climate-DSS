@@ -192,3 +192,33 @@ async def upload_document(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/api/v1/admin/documents/{doc_id}")
+def delete_admin_document(doc_id: int, db: Session = Depends(get_db), admin_user: User = Depends(get_current_admin)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Delete local file if it exists
+    if doc.file_url and doc.file_url != "failed" and doc.file_url != "#":
+        file_path = os.path.join("uploads", doc.file_url)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print(f"Error removing file {file_path}: {e}")
+                
+    # Delete from ChromaDB
+    try:
+        import chromadb
+        chroma_client = chromadb.PersistentClient(path="./chroma_db")
+        collection = chroma_client.get_or_create_collection(name="climate_docs")
+        # Try both ID styles: doc_id (document) and filename (whisper transcript)
+        collection.delete(ids=[f"doc_{doc.id}", doc.file_url])
+    except Exception as e:
+         print(f"Error removing document from ChromaDB: {e}")
+
+    db.delete(doc)
+    db.commit()
+    return {"message": "Document and associated index deleted successfully"}

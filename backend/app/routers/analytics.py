@@ -105,3 +105,31 @@ def get_timeseries_analytics(
         })
         
     return data
+
+from app.auth import get_current_admin
+from app.models.user import User
+
+@router.get("/api/v1/admin/reports/monthly")
+def get_monthly_reports_stats(db: Session = Depends(get_db), admin_user: User = Depends(get_current_admin)):
+    from collections import defaultdict
+    docs = db.query(Document.source, Document.scraped_at).filter(Document.scraped_at.isnot(None)).all()
+    
+    monthly_data = defaultdict(lambda: {"scraped": 0, "admin": 0})
+    for source, scraped_at in docs:
+        month_str = scraped_at.strftime("%Y-%m")
+        if source in ("ARIN", "WHISPER"):
+            monthly_data[month_str]["admin"] += 1
+        else:
+            monthly_data[month_str]["scraped"] += 1
+            
+    sorted_months = sorted(monthly_data.keys())
+    result = []
+    for month in sorted_months:
+        result.append({
+            "month": month,
+            "scraped": monthly_data[month]["scraped"],
+            "admin": monthly_data[month]["admin"],
+            "total": monthly_data[month]["scraped"] + monthly_data[month]["admin"]
+        })
+    return result
+

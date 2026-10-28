@@ -10,7 +10,10 @@ def auto_transcribe_new_media():
     if not os.path.exists(upload_dir):
         return
 
-    media_files = [f for f in os.listdir(upload_dir) if f.lower().endswith(('.mp4', '.mp3', '.wav', '.m4a'))]
+    media_files = [
+        f for f in os.listdir(upload_dir) 
+        if f.lower().endswith(('.mp4', '.mp3', '.wav', '.m4a')) and not f.endswith('_optimized.mp3')
+    ]
     
     db = SessionLocal()
     try:
@@ -26,6 +29,10 @@ def auto_transcribe_new_media():
                     print(f"Successfully transcribed and saved: {filename}")
                 except Exception as e:
                     print(f"Error transcribing {filename}: {e}")
+                    try:
+                        save_transcript_to_db(filename, f"Transcription failed: {e}")
+                    except Exception:
+                        pass
     finally:
         db.close()
 

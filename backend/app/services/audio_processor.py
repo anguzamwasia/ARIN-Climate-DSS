@@ -60,6 +60,7 @@ def compress_media_to_whisper_spec(input_path: str) -> str:
     # -ar 16000: Align audio clock frequency down to native Whisper model index (16,000Hz)
     ffmpeg_command = [
         "ffmpeg", "-y",
+        "-threads", "1",
         "-i", input_path,
         "-vn",
         "-ac", "1",
@@ -69,13 +70,16 @@ def compress_media_to_whisper_spec(input_path: str) -> str:
     ]
 
     try:
-        # Run FFmpeg synchronously 
-        subprocess.run(ffmpeg_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        # Run FFmpeg synchronously with minimal memory overhead
+        subprocess.run(ffmpeg_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         
         compressed_size_mb = os.path.getsize(output_path) / (1024 * 1024)
         logger.info(f"Compression completed successfully. New file saved in uploads: {os.path.basename(output_path)} ({compressed_size_mb:.2f} MB)")
         return output_path
 
     except subprocess.CalledProcessError as err:
-        logger.error(f"FFmpeg command processing fault: {err.stderr}")
-        raise RuntimeError(f"FFmpeg compression pipeline failed: {err.stderr}")
+        logger.error(f"FFmpeg command processing fault: {err}")
+        return input_path
+    except Exception as e:
+        logger.error(f"Compression error: {e}")
+        return input_path

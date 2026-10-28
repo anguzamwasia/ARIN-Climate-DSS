@@ -62,10 +62,22 @@ def get_blog(blog_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Blog not found")
     return dict(row)
 
+def sanitize_html_text(text_val: str | None) -> str | None:
+    if not text_val:
+        return text_val
+    # Replace non-breaking spaces with standard spaces to preserve natural line wrapping and prevent mid-word truncation
+    return text_val.replace("&nbsp;", " ").replace("\u00a0", " ")
+
 @router.post("/blogs")
 def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
     new_status = blog.status or 'pending'
     author_email_clean = blog.author_email.strip().lower() if blog.author_email else None
+
+    # Sanitize rich text inputs
+    blog_data = blog.dict(exclude={'edited_by_admin', 'status'})
+    for field in ['summary', 'background', 'findings', 'implications', 'narrative', 'impact', 'sources']:
+        if field in blog_data and blog_data[field]:
+            blog_data[field] = sanitize_html_text(blog_data[field])
 
     # Duplication check
     existing = db.execute(text("SELECT id, status, author_email FROM blogs WHERE title = :title"), {"title": blog.title}).mappings().first()
@@ -85,7 +97,7 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
                     submitted_at = :submitted_at, author_email = :author_email
                 WHERE id = :id
             """), {
-                **blog.dict(exclude={'edited_by_admin', 'status'}),
+                **blog_data,
                 "status": new_status,
                 "submitted_at": datetime.utcnow(),
                 "author_email": author_email_clean,
@@ -125,7 +137,7 @@ def submit_blog(blog: BlogIn, db: Session = Depends(get_db)):
         VALUES (:title, :author_name, :post_type, :summary, :background, :findings, :implications, :narrative, :impact, :sources, :image_url, :status, :submitted_at, :author_email, FALSE)
         RETURNING id
     """), {
-        **blog.dict(exclude={'edited_by_admin', 'status'}),
+        **blog_data,
         "status": new_status,
         "submitted_at": datetime.utcnow(),
         "author_email": author_email_clean
@@ -238,13 +250,13 @@ def update_blog(blog_id: int, blog: BlogIn, db: Session = Depends(get_db)):
         "title": blog.title,
         "author_name": blog.author_name,
         "post_type": blog.post_type,
-        "summary": blog.summary,
-        "background": blog.background,
-        "findings": blog.findings,
-        "implications": blog.implications,
-        "narrative": blog.narrative,
-        "impact": blog.impact,
-        "sources": blog.sources,
+        "summary": sanitize_html_text(blog.summary),
+        "background": sanitize_html_text(blog.background),
+        "findings": sanitize_html_text(blog.findings),
+        "implications": sanitize_html_text(blog.implications),
+        "narrative": sanitize_html_text(blog.narrative),
+        "impact": sanitize_html_text(blog.impact),
+        "sources": sanitize_html_text(blog.sources),
         "image_url": blog.image_url,
         "status": new_status,
         "submitted_at": submitted_at_val,
@@ -442,7 +454,8 @@ def reject_blog(blog_id: int, action: BlogAction, db: Session = Depends(get_db),
             author_name=row['author_name'],
             title=row['title'],
             post_type=post_type,
-            feedback=action.feedback or ''
+            feedback=action.feedback or '',
+            blog_id=blog_id
         )
         db.execute(text("""
             INSERT INTO notifications (user_email, title, message, is_read, created_at)

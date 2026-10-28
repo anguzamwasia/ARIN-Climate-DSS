@@ -53,6 +53,11 @@ interface LocalMediaLog {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
+function formatRichText(html?: string) {
+  if (!html) return ""
+  return html.replace(/&nbsp;/g, " ").replace(/\u00a0/g, " ")
+}
+
 export default function UnifiedAdminPortal() {
   const { token, logout } = useAuth()
   // Navigation Tracking Layout Toggle
@@ -403,25 +408,54 @@ export default function UnifiedAdminPortal() {
     setIsProcessingBlog(false)
   }
 
+  const handleDeleteBlog = async (id: string) => {
+    if (!confirm("Are you sure you want to permanently delete this blog submission? This action cannot be undone.")) return
+    setIsProcessingBlog(true)
+    try {
+      const res = await fetch(`${API_URL}/blogs/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      })
+      if (res.ok) {
+        setAllBlogs(prev => prev.filter(b => b.id !== id))
+        setBlogActionMessage("🗑️ Blog deleted permanently.")
+        setTimeout(() => setBlogActionMessage(""), 3000)
+        alert("Blog deleted permanently.")
+        fetchBlogs()
+        fetchContentStats()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        alert(err.detail || "Failed to delete blog.")
+      }
+    } catch (err: any) {
+      alert(`Delete failure: ${err.message || err}`)
+    } finally {
+      setIsProcessingBlog(false)
+    }
+  }
+
   const handleEditSubmit = async (overrideStatus?: "approved" | "pending") => {
     if (!blogToEdit) return
     setIsProcessingBlog(true)
     setEditError(null)
     try {
       const targetStatus = overrideStatus || blogToEdit.status || "pending"
+      const cleanField = (val?: string) => val ? val.replace(/&nbsp;/g, " ").replace(/\u00a0/g, " ") : val
       const payload = {
         title: editFormData.title || blogToEdit.title,
         author_name: editFormData.authorName || blogToEdit.authorName,
         author_email: blogToEdit.authorEmail,
         post_type: blogToEdit.postType,
-        summary: editFormData.summary !== undefined ? editFormData.summary : blogToEdit.formData?.summary,
-        findings: editFormData.findings !== undefined ? editFormData.findings : blogToEdit.formData?.findings,
-        narrative: editFormData.narrative !== undefined ? editFormData.narrative : blogToEdit.formData?.narrative,
-        impact: editFormData.impact !== undefined ? editFormData.impact : blogToEdit.formData?.impact,
-        sources: editFormData.sources !== undefined ? editFormData.sources : blogToEdit.formData?.sources,
+        summary: cleanField(editFormData.summary !== undefined ? editFormData.summary : blogToEdit.formData?.summary),
+        findings: cleanField(editFormData.findings !== undefined ? editFormData.findings : blogToEdit.formData?.findings),
+        narrative: cleanField(editFormData.narrative !== undefined ? editFormData.narrative : blogToEdit.formData?.narrative),
+        impact: cleanField(editFormData.impact !== undefined ? editFormData.impact : blogToEdit.formData?.impact),
+        sources: cleanField(editFormData.sources !== undefined ? editFormData.sources : blogToEdit.formData?.sources),
         image_url: editFormData.imageUrl !== undefined ? editFormData.imageUrl : blogToEdit.imageUrl,
-        background: editFormData.background !== undefined ? editFormData.background : blogToEdit.formData?.background,
-        implications: editFormData.implications !== undefined ? editFormData.implications : blogToEdit.formData?.implications,
+        background: cleanField(editFormData.background !== undefined ? editFormData.background : blogToEdit.formData?.background),
+        implications: cleanField(editFormData.implications !== undefined ? editFormData.implications : blogToEdit.formData?.implications),
         status: targetStatus,
         edited_by_admin: true
       }
@@ -495,7 +529,10 @@ export default function UnifiedAdminPortal() {
         body: formData,
       })
 
-      if (!response.ok) throw new Error("Backend server rejected binary ingestion connection matrix.")
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.detail || `Server returned error status ${response.status}`)
+      }
 
       const data = await response.json()
       
@@ -833,6 +870,7 @@ export default function UnifiedAdminPortal() {
                               <button disabled={isProcessingBlog} onClick={() => openEditModal(blog)} className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-sm bg-blue-50 font-medium hover:bg-blue-100 transition-colors flex items-center gap-1 cursor-pointer"><Edit className="w-3.5 h-3.5" /> Edit</button>
                               <button disabled={isProcessingBlog} onClick={() => { setSelectedBlog(blog); setRejectionError(null); setShowModal(true); }} className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors cursor-pointer">Reject</button>
                               <button disabled={isProcessingBlog} onClick={() => handleApprove(blog.id)} className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700 transition-colors cursor-pointer">Approve</button>
+                              <button disabled={isProcessingBlog} onClick={() => handleDeleteBlog(blog.id)} className="px-2.5 py-1.5 border border-red-200 text-red-600 rounded-lg text-sm bg-red-50 font-medium hover:bg-red-100 transition-colors flex items-center gap-1 cursor-pointer" title="Delete mock-up"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           ) : blog.status === "approved" ? (
                             <div className="flex flex-wrap items-center gap-2">
@@ -855,6 +893,14 @@ export default function UnifiedAdminPortal() {
                               >
                                 View Live ↗
                               </Link>
+                              <button 
+                                disabled={isProcessingBlog} 
+                                onClick={() => handleDeleteBlog(blog.id)} 
+                                className="px-2.5 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs bg-red-50 font-medium hover:bg-red-100 transition-colors flex items-center gap-1 cursor-pointer"
+                                title="Delete published blog"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                              </button>
                             </div>
                           ) : (
                             <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
@@ -867,6 +913,14 @@ export default function UnifiedAdminPortal() {
                                 className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs bg-blue-50 font-medium hover:bg-blue-100 transition-colors flex items-center gap-1 cursor-pointer"
                               >
                                 <Edit className="w-3.5 h-3.5" /> Edit
+                              </button>
+                              <button 
+                                disabled={isProcessingBlog} 
+                                onClick={() => handleDeleteBlog(blog.id)} 
+                                className="px-3 py-1.5 border border-red-300 text-red-600 rounded-lg text-xs bg-red-50 font-semibold hover:bg-red-100 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                                title="Permanently delete this rejected mock-up / submission"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-600" /> Delete
                               </button>
                             </div>
                           )}
@@ -906,11 +960,11 @@ export default function UnifiedAdminPortal() {
                                       <div key={field} className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-amber-200/50 pt-2 mt-2">
                                         <div>
                                           <span className="text-[10px] font-bold text-red-700 uppercase tracking-wider block">Original {field}:</span>
-                                          <div className="text-gray-500 text-xs mt-0.5 prose prose-sm max-w-none line-through" dangerouslySetInnerHTML={{ __html: prevVal }} />
+                                          <div className="text-gray-500 text-xs mt-0.5 prose prose-sm max-w-none line-through" dangerouslySetInnerHTML={{ __html: formatRichText(prevVal) }} />
                                         </div>
                                         <div>
                                           <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Corrected {field}:</span>
-                                          <div className="text-gray-900 text-xs mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: currVal }} />
+                                          <div className="text-gray-900 text-xs mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formatRichText(currVal) }} />
                                         </div>
                                       </div>
                                     );
@@ -919,16 +973,16 @@ export default function UnifiedAdminPortal() {
                               ) : (
                                 blog.postType === "research" ? (
                                   <>
-                                    <div><span className="font-semibold text-gray-700">Executive Summary:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
-                                    <div><span className="font-semibold text-gray-700">Key Findings:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.findings || "" }} /></div>
-                                    <div><span className="font-semibold text-gray-700">Policy Implications:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.implications || "" }} /></div>
-                                    <div><span className="font-semibold text-gray-700">References:</span><div className="text-gray-500 text-xs italic mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.sources || "" }} /></div>
+                                    <div><span className="font-semibold text-gray-700">Executive Summary:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formatRichText(blog.formData.summary || "") }} /></div>
+                                    <div><span className="font-semibold text-gray-700">Key Findings:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formatRichText(blog.formData.findings || "") }} /></div>
+                                    <div><span className="font-semibold text-gray-700">Policy Implications:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formatRichText(blog.formData.implications || "") }} /></div>
+                                    <div><span className="font-semibold text-gray-700">References:</span><div className="text-gray-500 text-xs italic mt-0.5 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formatRichText(blog.formData.sources || "") }} /></div>
                                   </>
                                 ) : (
                                   <>
-                                    <div><span className="font-semibold text-amber-900">Story Premise:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.summary || "" }} /></div>
-                                    <div><span className="font-semibold text-amber-900">Lived Narrative:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.narrative || "" }} /></div>
-                                    <div><span className="font-semibold text-amber-900">Impact Indicators:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: blog.formData.impact || "" }} /></div>
+                                    <div><span className="font-semibold text-amber-900">Story Premise:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formatRichText(blog.formData.summary || "") }} /></div>
+                                    <div><span className="font-semibold text-amber-900">Lived Narrative:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formatRichText(blog.formData.narrative || "") }} /></div>
+                                    <div><span className="font-semibold text-amber-900">Impact Indicators:</span><div className="text-gray-600 mt-0.5 text-xs prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: formatRichText(blog.formData.impact || "") }} /></div>
                                   </>
                                 )
                               )}

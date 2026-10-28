@@ -27,3 +27,4 @@ email-validator
 aiofiles
 requests
 bcrypt
+yt-dlp

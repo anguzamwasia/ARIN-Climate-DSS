@@ -12,9 +12,11 @@ from app.auth import verify_password, get_password_hash, create_access_token, AC
 
 router = APIRouter()
 
-# Whitelist to restrict who can sign up
-# You can override this in your .env file like: ALLOWED_EMAILS=admin@arin.org,user@arin.org
-ALLOWED_EMAILS = os.getenv("ALLOWED_EMAILS", "admin@arin-africa.org,researcher@arin-africa.org,test@example.com").split(",")
+# Optional whitelist to restrict signups. By default, open registration is enabled for all new users.
+# Set ENFORCE_SIGNUP_WHITELIST=true and populate ALLOWED_EMAILS in .env only if you wish to restrict signups.
+_allowed_raw = os.getenv("ALLOWED_EMAILS", "").strip()
+ALLOWED_EMAILS = [e.strip().lower() for e in _allowed_raw.split(",") if e.strip()] if (_allowed_raw and _allowed_raw != "*") else []
+ENFORCE_WHITELIST = os.getenv("ENFORCE_SIGNUP_WHITELIST", "false").lower() in ("true", "1", "yes")
 
 class UserCreate(BaseModel):
     name: str
@@ -34,17 +36,18 @@ def send_simulated_email(to_email: str, subject: str, body: str):
 
 @router.post("/api/v1/auth/reset-password")
 def reset_password(payload: PasswordReset, db: Session = Depends(get_db)):
-    if not is_valid_email(payload.email):
+    email_clean = payload.email.strip().lower()
+    if not is_valid_email(email_clean):
         raise HTTPException(status_code=400, detail="The email format is invalid")
         
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = db.query(User).filter(User.email.ilike(email_clean)).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="The email address is not registered"
         )
         
-    if payload.email == "admin@arin-africa.org":
+    if email_clean == "admin@arin-africa.org":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Password reset is disabled for administrator accounts."
@@ -55,7 +58,7 @@ def reset_password(payload: PasswordReset, db: Session = Depends(get_db)):
     db.commit()
     
     send_simulated_email(
-        to_email=payload.email,
+        to_email=user.email,
         subject="ARIN Climate DSS Password Reset",
         body=f"Hello {user.name},\n\nYour password has been successfully reset. If you did not make this request, please contact an administrator."
     )
@@ -73,21 +76,24 @@ def is_valid_email(email: str) -> bool:
 
 @router.post("/api/v1/auth/signup", response_model=Token)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
-    if user.email not in ALLOWED_EMAILS:
+    email_clean = user.email.strip().lower()
+    name_clean = user.name.strip()
+
+    if ENFORCE_WHITELIST and ALLOWED_EMAILS and email_clean not in ALLOWED_EMAILS:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Signup restricted. Please contact an administrator."
         )
 
-    if not is_valid_email(user.email):
+    if not is_valid_email(email_clean):
         raise HTTPException(status_code=400, detail="The email format is invalid")
         
-    db_user = db.query(User).filter(User.email == user.email).first()
+    db_user = db.query(User).filter(User.email.ilike(email_clean)).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
         
     hashed_password = get_password_hash(user.password)
-    new_user = User(name=user.name, email=user.email, hashed_password=hashed_password)
+    new_user = User(name=name_clean, email=email_clean, hashed_password=hashed_password)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -101,10 +107,11 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/api/v1/auth/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    if not is_valid_email(form_data.username):
+    username_clean = form_data.username.strip().lower()
+    if not is_valid_email(username_clean):
         raise HTTPException(status_code=400, detail="The email format is invalid")
 
-    user = db.query(User).filter(User.email == form_data.username).first()
+    user = db.query(User).filter(User.email.ilike(username_clean)).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

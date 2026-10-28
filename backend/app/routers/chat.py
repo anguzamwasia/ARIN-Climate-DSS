@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 import os
+import time
 import chromadb
 from openai import OpenAI
 import re
@@ -25,7 +26,37 @@ router = APIRouter()
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="climate_docs")
 
+# In-memory guest rate limits tracking (max 10 questions per 18 hours per IP)
+guest_rate_limits = {}
+
 def generate_ai_response(question: str, db: Session) -> dict:
+    # Cache lookup to save OpenAI tokens (reuse identical questions asked by other users)
+    try:
+        from sqlalchemy import func
+        clean_q = question.strip().lower()
+        # Find the most recent matching question from any user
+        matching_user_msg = db.query(ChatMessage).filter(
+            ChatMessage.role == "user",
+            func.lower(func.trim(ChatMessage.content)) == clean_q
+        ).order_by(ChatMessage.created_at.desc()).first()
+        
+        if matching_user_msg:
+            # Retrieve the assistant response from that thread
+            assistant_reply = db.query(ChatMessage).filter(
+                ChatMessage.thread_id == matching_user_msg.thread_id,
+                ChatMessage.role == "assistant",
+                ChatMessage.created_at > matching_user_msg.created_at
+            ).order_by(ChatMessage.created_at.asc()).first()
+            
+            if assistant_reply and assistant_reply.content:
+                print(f"Cache Hit for question: '{question}' - Reusing response from thread: {matching_user_msg.thread_id}")
+                return {
+                    "answer": assistant_reply.content,
+                    "sources": assistant_reply.sources or []
+                }
+    except Exception as cache_err:
+        print(f"Cache lookup error: {cache_err}")
+
     # Fetch recent chatbot feedback to learn from it dynamically
     feedback_instructions = ""
     try:
@@ -204,9 +235,29 @@ User Question: {question}
         return {"answer": "Sorry, I ran into an error trying to process that with the AI model. (The API might be experiencing heavy load. Please wait 10 seconds and try again).", "sources": []}
 
 @router.post("/chat")
-def chat_with_data(req: ChatRequest):
+def chat_with_data(req: ChatRequest, request: Request):
     if not req.question:
         return {"answer": "No message provided.", "sources": []}
+
+    # Guest IP-based rate limiter (Max 10 questions per 18 hours)
+    client_ip = request.client.host if request.client else "unknown_ip"
+    now = time.time()
+    window = 18 * 3600  # 18 hours in seconds
+
+    if client_ip not in guest_rate_limits:
+        guest_rate_limits[client_ip] = []
+
+    # Clean up timestamps older than 18 hours
+    guest_rate_limits[client_ip] = [t for t in guest_rate_limits[client_ip] if now - t < window]
+
+    if len(guest_rate_limits[client_ip]) >= 10:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. You can only ask a maximum of 10 questions every 18 hours to prevent token depletion."
+        )
+
+    guest_rate_limits[client_ip].append(now)
+
     db = SessionLocal()
     try:
         return generate_ai_response(req.question, db)
@@ -305,7 +356,21 @@ def post_chat_message(
 ):
     if not req.question:
         raise HTTPException(status_code=400, detail="Question cannot be empty")
-        
+
+    # Enforce 18-hour rate limit (max 10 questions per user)
+    eighteen_hours_ago = datetime.datetime.utcnow() - datetime.timedelta(hours=18)
+    user_msg_count = db.query(ChatMessage).join(ChatThread).filter(
+        ChatThread.user_id == current_user.id,
+        ChatMessage.role == "user",
+        ChatMessage.created_at >= eighteen_hours_ago
+    ).count()
+
+    if user_msg_count >= 10:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. You can only ask a maximum of 10 questions every 18 hours to prevent token depletion."
+        )
+
     thread = db.query(ChatThread).filter(
         ChatThread.id == thread_id,
         ChatThread.user_id == current_user.id

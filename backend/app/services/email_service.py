@@ -192,11 +192,11 @@ def send_approval_email(to_email: str, author_name: str, title: str, post_type: 
     )
     send_email_async(to_email, subject, body_text, html)
 
-def send_revision_requested_email(to_email: str, author_name: str, title: str, post_type: str = "research", feedback: str = ""):
+def send_revision_requested_email(to_email: str, author_name: str, title: str, post_type: str = "research", feedback: str = "", blog_id: int = None):
     """Notifies contributor that changes are required before their research or story can be approved."""
     is_research = post_type == "research"
     type_label = "Research Paper" if is_research else "Community Story"
-    edit_url = f"{BASE_URL}/blog/submit"
+    edit_url = f"{BASE_URL}/blog/submit?id={blog_id}" if blog_id else f"{BASE_URL}/blog/submit"
 
     subject = f"ARIN Climate DSS: Revision Requested for your {type_label} ⚠️"
     headline = f"Action Required: Revision Requested"

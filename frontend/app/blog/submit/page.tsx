@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
@@ -63,7 +64,7 @@ const formTemplates = {
   ]
 }
 
-export default function BlogSubmitPage() {
+function BlogSubmitContent() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState<"submit" | "status">("submit")
   const [postType, setPostType] = useState<PostType>("research")
@@ -78,6 +79,8 @@ export default function BlogSubmitPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showComparison, setShowComparison] = useState<Record<string, boolean>>({})
   const [blogActionMessage, setBlogActionMessage] = useState("")
+  const searchParams = useSearchParams()
+  const targetId = searchParams.get('id') || searchParams.get('edit')
 
   const MAX_IMAGE_SIZE = 3 * 1024 * 1024 // 3MB in bytes
 
@@ -129,6 +132,51 @@ export default function BlogSubmitPage() {
       setFormData(prev => ({ ...prev, authorName: user.name }))
     }
   }, [user])
+
+  // Automatically load requested blog for editing when accessed via email link (?id=...)
+  useEffect(() => {
+    if (!targetId) return
+
+    const found = allBlogs.find(b => b.id === targetId)
+    if (found) {
+      handleEditBlog(found)
+      return
+    }
+
+    const loadSpecificBlog = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/blogs/${targetId}`)
+        if (res.ok) {
+          const b = await res.json()
+          const mappedBlog: Blog = {
+            id: b.id.toString(),
+            title: b.title,
+            authorName: b.author_name,
+            authorEmail: b.author_email,
+            previousVersion: b.previous_version,
+            postType: b.post_type,
+            status: b.status,
+            submittedAt: b.submitted_at,
+            imageUrl: b.image_url,
+            feedback: b.feedback,
+            formData: {
+              summary: b.summary,
+              findings: b.findings,
+              narrative: b.narrative,
+              impact: b.impact,
+              sources: b.sources,
+              background: b.background,
+              implications: b.implications
+            }
+          }
+          handleEditBlog(mappedBlog)
+        }
+      } catch (e) {
+        console.error("Failed to load requested blog for editing", e)
+      }
+    }
+    loadSpecificBlog()
+  }, [targetId, allBlogs.length])
 
   useEffect(() => {
     setUploadedImageBase64(null)
@@ -218,19 +266,21 @@ export default function BlogSubmitPage() {
     const fallbackTitle = `Draft: ${postType === 'research' ? 'Research Findings' : 'Community Story'} (${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`
     const resolvedTitle = formData.title?.trim() || fallbackTitle
 
+    const cleanRichText = (v?: string) => v ? v.replace(/&nbsp;/g, " ").replace(/\u00a0/g, " ") : ""
+
     const payload = {
       title: resolvedTitle,
       author_name: formData.authorName || user?.name || "Anonymous Contributor",
       author_email: user?.email || null,
       post_type: postType,
-      summary: formData.summary || "",
-      findings: formData.findings || "",
-      narrative: formData.narrative || "",
-      impact: formData.impact || "",
-      sources: formData.sources || "",
+      summary: cleanRichText(formData.summary),
+      findings: cleanRichText(formData.findings),
+      narrative: cleanRichText(formData.narrative),
+      impact: cleanRichText(formData.impact),
+      sources: cleanRichText(formData.sources),
       image_url: uploadedImageBase64 || null,
-      background: formData.background || "",
-      implications: formData.implications || "",
+      background: cleanRichText(formData.background),
+      implications: cleanRichText(formData.implications),
       status: isDraftMode ? "draft" : "pending"
     }
 
@@ -334,6 +384,34 @@ export default function BlogSubmitPage() {
             <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 shadow-sm animate-in fade-in slide-in-from-top-1 duration-200">
               <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
               <p className="text-sm font-semibold text-emerald-800">{blogActionMessage}</p>
+            </div>
+          )}
+
+          {editingBlogId && (
+            <div className="mb-6 bg-amber-50 border border-amber-300 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm animate-in fade-in duration-200">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-bold text-amber-900 text-sm">
+                    {allBlogs.find(b => b.id === editingBlogId)?.status === "rejected" ? "Editing Requested Revision" : "Editing Saved Draft"}: "{formData.title || 'Untitled'}"
+                  </h3>
+                  {allBlogs.find(b => b.id === editingBlogId)?.feedback && (
+                    <p className="text-sm text-amber-800 mt-1 font-medium">
+                      <strong>Reviewer Feedback:</strong> "{allBlogs.find(b => b.id === editingBlogId)?.feedback}"
+                    </p>
+                  )}
+                  <p className="text-xs text-amber-700 mt-1">
+                    Reviewer comments are displayed above. Make your updates in the form below and click <strong>Submit Revised Version</strong> when finished.
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => { setEditingBlogId(null); setFormData({ authorName: user?.name || "" }); setUploadedImageBase64(null); }}
+                className="text-xs text-amber-800 hover:text-amber-950 font-semibold underline whitespace-nowrap self-end sm:self-center cursor-pointer"
+              >
+                Cancel & Start New
+              </button>
             </div>
           )}
 
@@ -494,7 +572,7 @@ export default function BlogSubmitPage() {
                           {submittingType === "draft" ? "Saving Draft..." : "Save Draft 💾"}
                         </button>
                         <Button type="submit" disabled={!getRequiredFieldsFilled() || submittingType !== null} className="flex-1 sm:flex-none">
-                          {submittingType === "submit" ? "Submitting for Review..." : "Submit for Review"}
+                          {submittingType === "submit" ? "Submitting for Review..." : editingBlogId ? "Submit Revised Version" : "Submit for Review"}
                         </Button>
                       </div>
                     </div>
@@ -642,5 +720,17 @@ export default function BlogSubmitPage() {
         </main>
       </div>
     </ProtectedRoute>
+  )
+}
+export default function BlogSubmitPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-xs text-muted-foreground mt-2 font-medium">Loading content editor...</p>
+      </div>
+    }>
+      <BlogSubmitContent />
+    </Suspense>
   )
 }

@@ -23,3 +23,7 @@ backend/uploads/
 *.db
 *.zip
 *.sql
+
+*.tsbuildinfo
+scratch_*.txt
+valid_transcript.txt

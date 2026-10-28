@@ -49,16 +49,18 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-    except JWTError:
+    except JWTError as e:
+        print(f"DEBUG JWT DECODE ERROR: {e}, Token: {token[:20]}..., Key: {SECRET_KEY[:10]}...")
         raise credentials_exception
         
     user = db.query(User).filter(User.email == email).first()
     if user is None:
+        print(f"DEBUG JWT USER NOT FOUND: Email: {email}")
         raise credentials_exception
     return user
 
 def get_current_admin(current_user: User = Depends(get_current_user)):
-    if current_user.email != "admin@arin-africa.org":
+    if current_user.email.strip().lower() != "admin@arin-africa.org":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have administrative privileges to access this resource."

@@ -5,11 +5,13 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, status
+from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File, Form, status, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from app.database import SessionLocal
 from app.services.transcriber import transcribe_community_audio, UPLOAD_DIR
+from app.models.user import User
+from app.auth import get_current_admin
 
 logger = logging.getLogger("backend.app.routers.transcription")
 
@@ -26,16 +28,47 @@ class KoboWebhookPayload(BaseModel):
         extra = "allow"
 
 
-def save_transcript_to_db(filename: str, transcript: str, country: str = ""):
+def generate_clean_media_title(filename: str) -> str:
+    import re
+    cleaned = filename
+    cleaned = re.sub(r'^(admin|kobo)_\d+_', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'__+', ' - ', cleaned)
+    cleaned = re.sub(r'\s*\(\d+\)\s*', ' ', cleaned)
+    cleaned = re.sub(r'\.(mp4|mp3|wav|avi|m4a)$', '', cleaned, flags=re.IGNORECASE)
+    cleaned = cleaned.replace('_', ' ').strip()
+    words = [w.capitalize() for w in cleaned.split() if w]
+    clean_title = " ".join(words)
+    return clean_title or f"Media Recording ({filename})"
+
+def generate_extractive_summary(transcript: str) -> str:
+    if not transcript:
+        return "Audio/video session transcribed and processed into the ARIN Decision Support System."
+    import re
+    paragraphs = [p.strip() for p in transcript.split('\n\n') if p.strip()]
+    meaningful = []
+    mic_words = {"can you see", "presentation mode", "testing", "mic check", "can you hear"}
+    for p in paragraphs:
+        if any(mw in p.lower() for mw in mic_words) and len(meaningful) == 0:
+            continue
+        meaningful.append(p)
+        if len(meaningful) >= 3:
+            break
+    if meaningful:
+        return "\n\n".join(meaningful)
+    return transcript[:500].strip()
+
+def save_transcript_to_db(filename: str, transcript: str, country: str = "", description: Optional[str] = None):
     from app.models.document import Document
     db = SessionLocal()
     try:
+        clean_title = generate_clean_media_title(filename)
+        clean_body = description or generate_extractive_summary(transcript)
         new_doc = Document(
-            title=f"Transcript: {filename}",
+            title=clean_title,
             url="",
             date="",
             type="transcript",
-            body=transcript[:300],
+            body=clean_body,
             file_url=filename,
             source="WHISPER",
             country=country,
@@ -149,18 +182,23 @@ async def receive_kobo_form_submission(payload: KoboWebhookPayload, background_t
     return {"status": "queued", "submission_id": payload.submission_id, "filename": target_filename}
 
 
-def process_admin_media_async(filename: str):
+def process_admin_media_async(filename: str, description: Optional[str] = None):
     try:
         raw_transcript = transcribe_community_audio(filename)
         transcript = punctuate_transcript(raw_transcript)
-        save_transcript_to_db(filename, transcript)
+        save_transcript_to_db(filename, transcript, description=description)
         logger.info(f"Admin media processed: {filename}")
     except Exception as e:
         logger.error(f"Admin media processing failed for {filename}: {e}")
 
 
 @router.post("/admin/media/upload", status_code=status.HTTP_202_ACCEPTED)
-async def admin_upload_media(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def admin_upload_media(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    description: str = Form(...),
+    current_admin: User = Depends(get_current_admin)
+):
     filename = file.filename
     if not filename.lower().endswith((".mp3", ".mp4", ".wav", ".m4a")):
         raise HTTPException(status_code=400, detail="Unsupported media format")
@@ -173,5 +211,117 @@ async def admin_upload_media(background_tasks: BackgroundTasks, file: UploadFile
             shutil.copyfileobj(file.file, buf)
     finally:
         file.file.close()
-    background_tasks.add_task(process_admin_media_async, sanitized_filename)
+    background_tasks.add_task(process_admin_media_async, sanitized_filename, description)
     return {"status": "queued", "internal_filename": sanitized_filename}
+
+
+class LinkIngestionRequest(BaseModel):
+    url: str
+    description: str
+
+
+def download_and_process_link_pipeline(url: str, sanitized_filename: str, description: Optional[str] = None):
+    try:
+        destination_path = os.path.join(UPLOAD_DIR, sanitized_filename)
+        
+        # 1. Check if it is a YouTube URL
+        is_youtube = "youtube.com" in url.lower() or "youtu.be" in url.lower()
+        
+        if is_youtube:
+            import yt_dlp
+            # yt-dlp options: extract audio to native format (bestaudio)
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'outtmpl': os.path.join(UPLOAD_DIR, sanitized_filename.replace('.mp3', '')), # yt-dlp appends its own extension
+            }
+            # Add cookies check if a cookies.txt file exists in backend root to bypass cloud IP block lists
+            cookies_path = "/app/cookies.txt"
+            if os.path.exists(cookies_path):
+                ydl_opts['cookiefile'] = cookies_path
+            elif os.path.exists("cookies.txt"):
+                ydl_opts['cookiefile'] = "cookies.txt"
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                downloaded_file = ydl.prepare_filename(info)
+                if os.path.exists(downloaded_file):
+                    shutil.move(downloaded_file, destination_path)
+        else:
+            # 2. Generic direct live video link download
+            import requests
+            response = requests.get(url, stream=True, timeout=120)
+            if response.status_code != 200:
+                raise Exception(f"Failed to download video stream. HTTP Status: {response.status_code}")
+            with open(destination_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+                    
+        # 3. Transcribe downloaded media
+        process_admin_media_async(sanitized_filename, description)
+        logger.info(f"Link ingestion pipeline finished successfully for: {url}")
+    except Exception as e:
+        logger.error(f"Link ingestion pipeline failed for {url}: {e}")
+        # Log a failed transcript entry so the administrator can see the failure status in the dashboard
+        from app.models.document import Document
+        db = SessionLocal()
+        try:
+            new_doc = Document(
+                title=f"Failed Transcript: {url[:60]}",
+                url=url,
+                date="",
+                type="transcript",
+                body=f"Failed to ingest live stream link. Description: {description}. Error: {str(e)}",
+                file_url="failed",
+                source="WHISPER",
+                country="Unknown",
+                scraped_at=datetime.utcnow(),
+                content_text=f"Link Ingestion Failure details:\n{str(e)}"
+            )
+            db.add(new_doc)
+            db.commit()
+        except Exception as db_err:
+            logger.error(f"Failed to record link ingestion failure in database: {db_err}")
+        finally:
+            db.close()
+
+
+@router.post("/admin/media/link", status_code=status.HTTP_202_ACCEPTED)
+async def admin_ingest_media_link(
+    background_tasks: BackgroundTasks,
+    req: LinkIngestionRequest,
+    current_admin: User = Depends(get_current_admin)
+):
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL cannot be empty")
+    description = req.description.strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="Description/Tags are mandatory")
+        
+    # We download as audio to fit existing Whisper transcription pipeline
+    # Name the file based on timestamp to prevent collision
+    sanitized_filename = f"admin_link_{int(datetime.utcnow().timestamp())}.mp3"
+    
+    background_tasks.add_task(download_and_process_link_pipeline, url, sanitized_filename, description)
+    return {"status": "queued", "internal_filename": sanitized_filename}
+
+
+@router.post("/admin/media/cookies", status_code=status.HTTP_200_OK)
+async def admin_upload_cookies(file: UploadFile = File(...), current_admin: User = Depends(get_current_admin)):
+    if not file.filename.endswith(".txt"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Must be a cookies.txt file")
+    
+    cookies_path = "/app/cookies.txt"
+    try:
+        with open(cookies_path, "wb") as buf:
+            shutil.copyfileobj(file.file, buf)
+    except Exception as e:
+        # Fallback to local execution directory if /app/ is not writable or doesn't exist
+        try:
+            with open("cookies.txt", "wb") as buf:
+                shutil.copyfileobj(file.file, buf)
+        except Exception as e2:
+            raise HTTPException(status_code=500, detail=f"Failed to save cookies file: {str(e2)}")
+    finally:
+        file.close()
+        
+    return {"status": "success", "message": "YouTube authentication cookies uploaded successfully"}

@@ -484,11 +484,16 @@ function DataSourcesContent() {
 
   useEffect(() => {
     setMounted(true)
-    fetch(`${API_URL}/documents?limit=10000`)
-      .then((res) => res.json())
-      .then((data) => setDocs(Array.isArray(data) ? data : []))
-      .catch(() => setDocs([]))
-      .finally(() => setLoading(false))
+    const fetchDocs = () => {
+      fetch(`${API_URL}/documents?limit=10000`)
+        .then((res) => res.json())
+        .then((data) => setDocs(Array.isArray(data) ? data : []))
+        .catch(() => setDocs([]))
+        .finally(() => setLoading(false))
+    }
+    fetchDocs() // initial load
+    const interval = setInterval(fetchDocs, 10000) // poll every 10 seconds
+    return () => clearInterval(interval)
   }, [])
 
   const isAdmin = mounted && user?.email === "admin@arin-africa.org"
@@ -996,7 +1001,7 @@ function DataSourcesContent() {
                                   >
                                     <div className="flex flex-col gap-0.5">
                                       <span className="text-xs text-slate-500 uppercase font-bold">Response #{idx + 1}</span>
-                                      <span className="text-sm font-bold text-primary">{respondentName}</span>
+                                      <span className="text-sm font-semibold text-slate-700">{sub.type || 'Field Submission'}</span>
                                     </div>
                                     <div className="text-right flex items-center gap-3">
                                       <div className="flex flex-col items-end gap-0.5 text-xs text-slate-600">
@@ -1016,6 +1021,41 @@ function DataSourcesContent() {
                                   
                                   {isExpanded && (
                                     <div className="p-5 border-t bg-white space-y-4">
+                                      {/* Section cards from body field */}
+                                      {sub.body && sub.body.includes(' || ') && (
+                                        <div className="space-y-2.5">
+                                          {sub.body.split(' || ').map((section: string, sIdx: number) => {
+                                            const dashIdx = section.indexOf(' – ');
+                                            const colonIdx = section.indexOf(': ');
+                                            const splitIdx = dashIdx !== -1 ? dashIdx : colonIdx;
+                                            const sectionLabel = splitIdx !== -1 ? section.substring(0, splitIdx).trim() : `Section ${sIdx + 1}`;
+                                            const sectionBody = splitIdx !== -1 ? section.substring(splitIdx).replace(/^[\s–:]+/, '').trim() : section;
+                                            const sectionColors = [
+                                              'border-blue-100 bg-blue-50/50',
+                                              'border-emerald-100 bg-emerald-50/50',
+                                              'border-orange-100 bg-orange-50/50',
+                                              'border-purple-100 bg-purple-50/50',
+                                              'border-teal-100 bg-teal-50/50',
+                                            ];
+                                            const labelColors = [
+                                              'text-blue-800 bg-blue-100',
+                                              'text-emerald-800 bg-emerald-100',
+                                              'text-orange-800 bg-orange-100',
+                                              'text-purple-800 bg-purple-100',
+                                              'text-teal-800 bg-teal-100',
+                                            ];
+                                            return (
+                                              <div key={sIdx} className={`border rounded-xl p-4 ${sectionColors[sIdx % sectionColors.length]}`}>
+                                                <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded ${labelColors[sIdx % labelColors.length]}`}>
+                                                  {sectionLabel}
+                                                </span>
+                                                <p className="text-xs text-slate-700 leading-relaxed mt-2">{sectionBody}</p>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                      {/* Raw form field grid (admin detail view) */}
                                       {sub.content_text ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                           {sub.content_text.split('\n').map((line: string, lIdx: number) => {
