@@ -55,7 +55,8 @@ The **ARIN Climate Decision Support System (DSS)** is an extensible AI-driven pl
 ##  Key Features
 
 ### 1. **Multi-Source Data Ingestion**
--  UNFCCC policy reports (78 African countries scraped)
+-  UNFCCC policy reports scraped
+-  World Bank Reports scraped
 -  KoboCollect field data synchronization
 -  Audio/video interview transcription (Whisper)
 -  Extensible architecture for national reports (KNBS, KMD)
