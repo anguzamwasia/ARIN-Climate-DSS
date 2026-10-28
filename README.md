@@ -11,7 +11,7 @@
 **Client:** Africa Research and Impact Network (ARIN)  
 **Consultant:** Cynthia Anguza  
 
-[Documentation](#) | [Demo](#) | [Report Issue](#)
+[Documentation](#) | [Demo](https://arin-climatedata.org) | [Report Issue](#)
 
 </div>
 
